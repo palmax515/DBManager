@@ -26,7 +26,7 @@ jobs:
           DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
         run: |
           xcodebuild -project sequel-ace.xcodeproj \
-            -target "Sequel Ace" \
+            -scheme "Sequel Ace Release" \
             -configuration Release \
             -arch x86_64 \
             -derivedDataPath build/DerivedData \
