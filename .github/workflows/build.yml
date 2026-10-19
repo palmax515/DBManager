@@ -1,0 +1,51 @@
+name: Build DBManager
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-dbmanager-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build x86_64
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Release
+        env:
+          DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+        run: |
+          xcodebuild -project sequel-ace.xcodeproj \
+            -target "Sequel Ace" \
+            -configuration Release \
+            -arch x86_64 \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+
+      - name: Package app
+        run: |
+          APP="build/DerivedData/Build/Products/Release/Sequel Ace.app"
+          test -d "$APP"
+          rm -rf build/Release/DBManager.app
+          mkdir -p build/Release
+          cp -R "$APP" "build/Release/DBManager.app"
+          cd build/Release
+          zip -r DBManager-macos-x86_64.zip DBManager.app
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DBManager-macos-x86_64
+          path: build/Release/DBManager-macos-x86_64.zip

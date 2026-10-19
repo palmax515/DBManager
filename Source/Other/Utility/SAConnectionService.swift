@@ -1,0 +1,617 @@
+//
+//  SAConnectionService.swift
+//  Sequel Ace
+//
+//  Created as part of the modernization effort.
+//  Extracts MySQL connection establishment logic from SPConnectionController
+//  into a standalone service that takes connection parameters and returns
+//  a configured SPMySQLConnection or an error.
+//
+
+import Foundation
+
+/// Result of a connection attempt, carrying either a live connection or
+/// diagnostic error information for the controller to format into UI.
+@objc class SAConnectionResult: NSObject {
+    @objc let connection: SPMySQLConnection?
+    @objc let sshTunnel: SPSSHTunnel?
+    @objc let errorTitle: String?
+    @objc let errorMessage: String?
+    @objc let errorDetail: String?
+
+    // Diagnostic fields for controller-side error formatting
+    @objc let lastErrorID: UInt
+    @objc let rawErrorMessage: String
+    @objc let sshDebugMessages: String
+    @objc let connectionType: SAConnectionType
+    @objc let socketPath: String
+    @objc let databaseSelectionFailed: Bool
+    @objc let databaseSelectionError: String
+
+    /// True when the user cancelled (e.g. SSH password prompt). Not an error — just restore UI.
+    @objc var userCancelled: Bool = false
+
+    @objc var isSuccess: Bool { connection != nil && errorTitle == nil && !databaseSelectionFailed }
+
+    @objc init(connection: SPMySQLConnection, sshTunnel: SPSSHTunnel?,
+               databaseSelectionFailed: Bool = false, databaseSelectionError: String = "") {
+        self.connection = connection
+        self.sshTunnel = sshTunnel
+        self.errorTitle = nil
+        self.errorMessage = nil
+        self.errorDetail = nil
+        self.lastErrorID = 0
+        self.rawErrorMessage = ""
+        self.sshDebugMessages = ""
+        self.connectionType = .tcpIP
+        self.socketPath = ""
+        self.databaseSelectionFailed = databaseSelectionFailed
+        self.databaseSelectionError = databaseSelectionError
+        super.init()
+    }
+
+    /// Creates the result of a failed attempt. Whether the failure comes from a
+    /// denied Local Network permission is not decided here: the error message
+    /// cannot tell, so the connection controller probes the host instead.
+    ///
+    /// - Parameters:
+    ///   - errorTitle: The title of the error shown to the user.
+    ///   - errorMessage: The error message.
+    ///   - errorDetail: Further detail, if any.
+    ///   - lastErrorID: The MySQL error number of the attempt.
+    ///   - rawErrorMessage: The MySQL error message of the attempt.
+    ///   - sshDebugMessages: The SSH tunnel's output, for tunnel failures.
+    ///   - connectionType: The kind of connection that failed.
+    ///   - socketPath: The socket path, for socket connections.
+    @objc init(errorTitle: String, errorMessage: String?, errorDetail: String?,
+               lastErrorID: UInt = 0, rawErrorMessage: String = "",
+               sshDebugMessages: String = "",
+               connectionType: SAConnectionType = .tcpIP, socketPath: String = "") {
+        self.connection = nil
+        self.sshTunnel = nil
+        self.errorTitle = errorTitle
+        self.errorMessage = errorMessage
+        self.errorDetail = errorDetail
+        self.lastErrorID = lastErrorID
+        self.rawErrorMessage = rawErrorMessage
+        self.sshDebugMessages = sshDebugMessages
+        self.connectionType = connectionType
+        self.socketPath = socketPath
+        self.databaseSelectionFailed = false
+        self.databaseSelectionError = ""
+        super.init()
+    }
+
+    static func sshFailure(_ failure: SASSHTunnelFailure) -> SAConnectionResult {
+        // Initial tunnel failures already carry OpenSSH output as their detail.
+        // sshDebugMessages is reserved for MySQL failures after a tunnel connects,
+        // where the controller uses it to classify a port-forwarding failure.
+        return SAConnectionResult(
+            errorTitle: NSLocalizedString("SSH connection failed!", comment: ""),
+            errorMessage: failure.message,
+            errorDetail: failure.errorDetail,
+            connectionType: .sshTunnel
+        )
+    }
+}
+
+/// Connection preferences extracted from NSUserDefaults.
+@objc class SAConnectionPreferences: NSObject {
+    @objc var connectionTimeout: Int = 10
+    @objc var useKeepAlive: Bool = true
+    @objc var keepAliveInterval: Float = 60.0
+    @objc var enableQueryLogging: Bool = false
+    @objc var sslCipherList: String?
+
+    @objc static func fromUserDefaults() -> SAConnectionPreferences {
+        let prefs = UserDefaults.standard
+        let cp = SAConnectionPreferences()
+        cp.connectionTimeout = prefs.integer(forKey: SPConnectionTimeoutValue)
+        cp.useKeepAlive = prefs.bool(forKey: SPUseKeepAlive)
+        cp.keepAliveInterval = prefs.float(forKey: SPKeepAliveInterval)
+        cp.enableQueryLogging = prefs.bool(forKey: SPConsoleEnableLogging)
+        // Strip disabled ciphers: the preference stores "enabled1:enabled2:--:disabled1:disabled2"
+        // where "--" is a UI marker separating enabled from disabled ciphers.
+        if var cipherString = prefs.string(forKey: SPSSLCipherListKey) {
+            if let markerRange = cipherString.range(of: ":?--", options: .regularExpression) {
+                cipherString = String(cipherString[..<markerRange.lowerBound])
+            }
+            cp.sslCipherList = cipherString.isEmpty ? nil : cipherString
+        }
+        return cp
+    }
+}
+
+/// Service that creates and configures MySQL connections.
+///
+/// Extracts the pure connection logic from SPConnectionController,
+/// making it testable and reusable from different UI contexts.
+@objc class SAConnectionService: NSObject {
+
+    private typealias SASSHTunnelCompletion = (SPSSHTunnel?, SASSHTunnelFailure?) -> Void
+
+    /// The delegate that receives MySQL connection callbacks (query logging, etc).
+    @objc weak var mySQLDelegate: (any SPMySQLConnectionDelegate)?
+
+    /// Lock protecting all mutable state accessed across threads:
+    /// activeTunnel, activeConnection, sshTunnelCompletion, activeAttemptID, _cancelled.
+    private let stateLock = NSLock()
+
+    /// Active SSH tunnel, kept alive for the duration of the connection.
+    @objc private(set) var activeTunnel: SPSSHTunnel? {
+        get { stateLock.lock(); defer { stateLock.unlock() }; return _activeTunnel }
+        set { stateLock.lock(); _activeTunnel = newValue; stateLock.unlock() }
+    }
+    private var _activeTunnel: SPSSHTunnel?
+
+    /// The active MySQL connection being established (nil when idle).
+    @objc private(set) var activeConnection: SPMySQLConnection? {
+        get { stateLock.lock(); defer { stateLock.unlock() }; return _activeConnection }
+        set { stateLock.lock(); _activeConnection = newValue; stateLock.unlock() }
+    }
+    private var _activeConnection: SPMySQLConnection?
+
+    /// Stored completion for SSH tunnel callback.
+    private var sshTunnelCompletion: SASSHTunnelCompletion? {
+        get { stateLock.lock(); defer { stateLock.unlock() }; return _sshTunnelCompletion }
+        set { stateLock.lock(); _sshTunnelCompletion = newValue; stateLock.unlock() }
+    }
+    private var _sshTunnelCompletion: SASSHTunnelCompletion?
+
+    private var cancelled: Bool {
+        get { stateLock.lock(); defer { stateLock.unlock() }; return _cancelled }
+        set { stateLock.lock(); _cancelled = newValue; stateLock.unlock() }
+    }
+    private var _cancelled = false
+    private var activeAttemptID: UInt64 = 0
+
+    private func startAttempt() -> UInt64 {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        activeAttemptID &+= 1
+        _cancelled = false
+        return activeAttemptID
+    }
+
+    private func cancelAttempt() {
+        stateLock.lock()
+        activeAttemptID &+= 1
+        _cancelled = true
+        _sshTunnelCompletion = nil
+        stateLock.unlock()
+    }
+
+    private func isCurrentAttempt(_ attemptID: UInt64) -> Bool {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        return activeAttemptID == attemptID && !_cancelled
+    }
+
+    private func setActiveConnection(_ connection: SPMySQLConnection?, for attemptID: UInt64) {
+        stateLock.lock()
+        if activeAttemptID == attemptID && !_cancelled {
+            _activeConnection = connection
+        }
+        stateLock.unlock()
+    }
+
+    private func setActiveTunnel(_ tunnel: SPSSHTunnel?, for attemptID: UInt64) {
+        stateLock.lock()
+        if activeAttemptID == attemptID && !_cancelled {
+            _activeTunnel = tunnel
+        }
+        stateLock.unlock()
+    }
+
+    private func setSSHTunnelCompletion(_ completion: SASSHTunnelCompletion?, for attemptID: UInt64) {
+        stateLock.lock()
+        if activeAttemptID == attemptID && !_cancelled {
+            _sshTunnelCompletion = completion
+        }
+        stateLock.unlock()
+    }
+
+    private func clearActiveState(for attemptID: UInt64) {
+        stateLock.lock()
+        if activeAttemptID == attemptID && !_cancelled {
+            _activeConnection = nil
+            _activeTunnel = nil
+        }
+        stateLock.unlock()
+    }
+
+    // MARK: - Public API
+
+    /// Resolves AWS credentials off the main thread before starting the legacy connection flow.
+    @objc(connectAWSIAMWithController:info:preferences:region:profile:attemptID:sshPassword:parentWindow:completion:)
+    func connectAWSIAM(
+        with controller: SPConnectionController,
+        info: SAConnectionInfoObjC,
+        preferences: SAConnectionPreferences,
+        region: String?,
+        profile: String?,
+        attemptID: UInt,
+        sshPassword: String,
+        parentWindow: NSWindow?,
+        completion: @escaping (SAConnectionResult) -> Void
+    ) {
+        // Fence earlier MySQL completions while AWS credentials are being resolved.
+        let serviceAttemptID = startAttempt()
+        AWSIAMAuthManager.generateAuthTokenInBackground(
+            hostname: info.host,
+            port: info.port.isEmpty ? 3306 : (info.port as NSString).integerValue,
+            username: info.user,
+            region: region,
+            profile: profile,
+            parentWindow: parentWindow,
+            shouldContinue: { [weak self, weak controller] in
+                self?.isCurrentAttempt(serviceAttemptID) == true &&
+                    controller?.isAWSConnectionAttemptCurrent(attemptID) == true
+            }
+        ) { [weak self, weak controller] token, error in
+            guard let self, let controller,
+                  self.isCurrentAttempt(serviceAttemptID),
+                  controller.isAWSConnectionAttemptCurrent(attemptID)
+            else { return }
+            guard let token, !token.isEmpty, error == nil else {
+                controller.failConnection(
+                    withTitle: NSLocalizedString("AWS IAM Authentication Failed", comment: "AWS IAM auth failed title"),
+                    errorMessage: error?.localizedDescription ?? NSLocalizedString("Empty authentication token returned", comment: "AWS IAM empty token error"),
+                    detail: nil
+                )
+                return
+            }
+            // Match the embedded flow: validate credentials in the background, then let
+            // the delegate generate a fresh token for each native connection attempt.
+            let password = SAConnectionInfoObjC.shouldDeferMySQLPasswordToDelegate(
+                for: info, password: token, delegateAvailable: self.mySQLDelegate != nil
+            ) ? nil : token
+            self.connect(with: info, preferences: preferences, password: password,
+                         sshPassword: sshPassword, parentWindow: parentWindow, completion: completion)
+        }
+    }
+
+    /// Creates and configures an SPMySQLConnection from the given parameters.
+    /// Runs on a background thread; calls completion on the main thread.
+    @objc func connect(
+        with info: SAConnectionInfoObjC,
+        preferences: SAConnectionPreferences,
+        password: String?,
+        sshPassword: String,
+        parentWindow: NSWindow?,
+        completion: @escaping (SAConnectionResult) -> Void
+    ) {
+        let attemptID = startAttempt()
+
+        // Wrap completion to suppress delivery after cancel or a newer attempt.
+        let safeCompletion: (SAConnectionResult) -> Void = { [weak self] result in
+            guard self?.isCurrentAttempt(attemptID) == true
+            else { return }
+            completion(result)
+        }
+
+        if info.type == .sshTunnel {
+            establishSSHTunnel(info: info, sshPassword: sshPassword, parentWindow: parentWindow, attemptID: attemptID) { [weak self] tunnel, failure in
+                guard let self = self, self.isCurrentAttempt(attemptID)
+                else { return }
+                if let tunnel = tunnel {
+                    self.setActiveTunnel(tunnel, for: attemptID)
+                    self.connectMySQL(info: info, preferences: preferences, password: password, tunnel: tunnel, attemptID: attemptID, completion: safeCompletion)
+                } else if let failure {
+                    let result = SAConnectionResult.sshFailure(failure)
+                    DispatchQueue.main.async { safeCompletion(result) }
+                } else {
+                    // User cancelled the SSH password prompt — restore UI silently
+                    let result = SAConnectionResult(
+                        errorTitle: "", errorMessage: nil, errorDetail: nil
+                    )
+                    result.userCancelled = true
+                    DispatchQueue.main.async { safeCompletion(result) }
+                }
+            }
+        } else {
+            connectMySQL(info: info, preferences: preferences, password: password, tunnel: nil, attemptID: attemptID, completion: safeCompletion)
+        }
+    }
+
+    /// Cancels an in-progress connection attempt.
+    @objc func cancel() {
+        cancelAttempt()
+
+        if let conn = activeConnection {
+            conn.setDelegate(nil)
+            Thread.detachNewThread {
+                conn.disconnect()
+            }
+        }
+        activeTunnel?.disconnect()
+        activeConnection = nil
+        activeTunnel = nil
+    }
+
+    // MARK: - Private: MySQL Connection
+
+    /// Establishes the MySQL-side connection once any required SSH tunnel is ready.
+    private func connectMySQL(
+        info: SAConnectionInfoObjC,
+        preferences: SAConnectionPreferences,
+        password: String?,
+        tunnel: SPSSHTunnel?,
+        attemptID: UInt64,
+        completion: @escaping (SAConnectionResult) -> Void
+    ) {
+        Thread.detachNewThread { [weak self] in
+            guard let self = self
+            else { return }
+
+            let conn = SPMySQLConnection()
+            guard self.isCurrentAttempt(attemptID) else { return }
+            self.setActiveConnection(conn, for: attemptID)
+
+            conn.username = info.user
+
+            switch info.type {
+            case .socket:
+                conn.useSocket = true
+                conn.socketPath = info.socket
+
+            case .sshTunnel:
+                conn.useSocket = false
+                conn.host = SAConnectionInfoObjC.resolvedMySQLConnectHost(for: info) ?? "127.0.0.1"
+                if let tunnel = tunnel {
+                    conn.port = UInt(tunnel.localPort())
+                    conn.setProxy(tunnel)
+                }
+
+            case .tcpIP, .awsIAM, .vault:
+                conn.useSocket = false
+                conn.host = SAConnectionInfoObjC.resolvedMySQLConnectHost(for: info) ?? "127.0.0.1"
+                conn.port = UInt(info.port) ?? 3306
+
+            @unknown default:
+                break
+            }
+
+            if let password {
+                conn.password = password
+            }
+            conn.allowDataLocalInfile = info.allowDataLocalInfile != 0
+            conn.enableClearTextPlugin = info.enableClearTextPlugin != 0
+            conn.requestServerPublicKey = info.requestServerPublicKey != 0
+
+            // AWS IAM auth requires cleartext plugin and SSL regardless of saved flags
+            if info.type == .awsIAM {
+                conn.enableClearTextPlugin = true
+                conn.useSSL = true
+            }
+
+            if info.useSSL != 0 || info.type == .awsIAM {
+                conn.useSSL = true
+                if info.sslKeyFileLocationEnabled != 0 {
+                    conn.sslKeyFilePath = info.sslKeyFileLocation
+                }
+                if info.sslCertificateFileLocationEnabled != 0 {
+                    conn.sslCertificatePath = info.sslCertificateFileLocation
+                }
+                if info.sslCACertFileLocationEnabled != 0 {
+                    conn.sslCACertificatePath = info.sslCACertFileLocation
+                }
+                if let cipher = preferences.sslCipherList {
+                    conn.sslCipherList = cipher
+                }
+            }
+
+            if !info.useCompression {
+                conn.removeClientFlags(.compression)
+            }
+
+            if let delegate = self.mySQLDelegate {
+                conn.setDelegate(delegate)
+            }
+            conn.delegateQueryLogging = preferences.enableQueryLogging
+            conn.timeout = UInt(preferences.connectionTimeout)
+            conn.useKeepAlive = preferences.useKeepAlive
+            conn.keepAliveInterval = CGFloat(preferences.keepAliveInterval)
+
+            conn.connect()
+            guard self.isCurrentAttempt(attemptID) else {
+                conn.setDelegate(nil)
+                conn.disconnect()
+                return
+            }
+
+            // SSH tunnel fallback: if connection failed through tunnel,
+            // wait briefly for SSH debug output, then retry with fallback port
+            if !conn.isConnected(), let tunnel = tunnel {
+                Thread.sleep(forTimeInterval: 0.1)
+                if tunnel.state() == SPMySQLProxyForwardingFailed,
+                   tunnel.localPortFallback() > 0 {
+                    conn.port = UInt(tunnel.localPortFallback())
+                    conn.connect()
+                    guard self.isCurrentAttempt(attemptID) else {
+                        conn.setDelegate(nil)
+                        conn.disconnect()
+                        return
+                    }
+                    if !conn.isConnected() {
+                        Thread.sleep(forTimeInterval: 0.1)
+                    }
+                }
+            }
+
+            if !conn.isConnected() {
+                guard self.isCurrentAttempt(attemptID) else {
+                    conn.setDelegate(nil)
+                    conn.disconnect()
+                    tunnel?.disconnect()
+                    return
+                }
+                let errorString = conn.lastErrorMessage() ?? ""
+                let errorID = conn.lastErrorID()
+
+                let result = SAConnectionResult(
+                    errorTitle: NSLocalizedString("Unable to connect", comment: ""),
+                    errorMessage: errorString,
+                    errorDetail: errorID == 1045
+                        ? NSLocalizedString("Please check your username and password and try again.", comment: "")
+                        : nil,
+                    lastErrorID: errorID,
+                    rawErrorMessage: errorString,
+                    sshDebugMessages: tunnel?.debugMessages() ?? "",
+                    connectionType: info.type,
+                    socketPath: info.socket
+                )
+
+                // Clean up: disconnect tunnel so it doesn't leak ports
+                tunnel?.disconnect()
+                self.clearActiveState(for: attemptID)
+
+                DispatchQueue.main.async { completion(result) }
+                return
+            }
+
+            // Database selection
+            if !info.database.isEmpty && !conn.selectDatabase(info.database) {
+                guard self.isCurrentAttempt(attemptID) else {
+                    conn.setDelegate(nil)
+                    conn.disconnect()
+                    tunnel?.disconnect()
+                    return
+                }
+                let dbError = conn.lastErrorMessage() ?? ""
+                let result = SAConnectionResult(
+                    connection: conn, sshTunnel: tunnel,
+                    databaseSelectionFailed: true,
+                    databaseSelectionError: dbError
+                )
+                DispatchQueue.main.async { completion(result) }
+                return
+            }
+
+            switch info.timeZoneMode {
+            case .useSystemTZ:
+                conn.updateTimeZoneIdentifier(TimeZone.current.identifier)
+            case .useFixedTZ:
+                if !info.timeZoneIdentifier.isEmpty {
+                    conn.updateTimeZoneIdentifier(info.timeZoneIdentifier)
+                }
+            case .useServerTZ:
+                break
+            @unknown default:
+                break
+            }
+
+            guard self.isCurrentAttempt(attemptID) else {
+                conn.setDelegate(nil)
+                conn.disconnect()
+                tunnel?.disconnect()
+                return
+            }
+
+            let result = SAConnectionResult(connection: conn, sshTunnel: tunnel)
+            DispatchQueue.main.async { completion(result) }
+        }
+    }
+
+    // MARK: - Private: SSH Tunnel
+
+    private func establishSSHTunnel(
+        info: SAConnectionInfoObjC,
+        sshPassword: String,
+        parentWindow: NSWindow?,
+        attemptID: UInt64,
+        completion: @escaping SASSHTunnelCompletion
+    ) {
+        guard let sshPort = info.info.sshPortOverride else {
+            let failure = SASSHTunnelFailure(
+                message: NSLocalizedString(
+                    "Enter an SSH port between 1 and 65535, or leave it blank to use the SSH configuration.",
+                    comment: "Invalid SSH port error"
+                ),
+                debugMessages: ""
+            )
+            completion(nil, failure)
+            return
+        }
+        let remoteSocketPath = info.sshRemoteSocketPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        let useRemoteSocket = !remoteSocketPath.isEmpty
+        let mysqlPort = useRemoteSocket ? 0 : (Int(info.port) ?? 3306)
+        let mysqlHost = useRemoteSocket ? "127.0.0.1" : info.host
+
+        guard let tunnel = SPSSHTunnel(
+            toHost: info.sshHost,
+            port: sshPort,
+            login: info.sshUser,
+            tunnellingToPort: mysqlPort,
+            onHost: mysqlHost
+        ) else {
+            completion(nil, SASSHTunnelFailure(message: "Failed to create SSH tunnel", debugMessages: ""))
+            return
+        }
+
+        if useRemoteSocket {
+            tunnel.setRemoteSocketPath(remoteSocketPath)
+        }
+
+        if let window = parentWindow {
+            tunnel.setParentWindow(window)
+        }
+
+        // Prefer an explicit SSH password over the stored keychain entry,
+        // so ad-hoc overrides on existing favorites work correctly.
+        if !sshPassword.isEmpty {
+            tunnel.setPassword(sshPassword)
+        } else if !info.connectionSSHKeychainItemName.isEmpty {
+            tunnel.setPasswordKeychainName(info.connectionSSHKeychainItemName,
+                                          account: info.connectionSSHKeychainItemAccount)
+        }
+
+        if info.sshKeyLocationEnabled != 0 && !info.sshKeyLocation.isEmpty {
+            tunnel.setKeyFilePath(info.sshKeyLocation)
+        }
+
+        tunnel.setConnectionStateChange(#selector(sshTunnelStateChanged(_:)),
+                                       delegate: self)
+
+        setActiveTunnel(tunnel, for: attemptID)
+        setSSHTunnelCompletion(completion, for: attemptID)
+        tunnel.connect()
+    }
+
+    @objc private func sshTunnelStateChanged(_ tunnel: SPSSHTunnel) {
+        guard activeTunnel === tunnel else { return }
+
+        // User cancelled the SSH password dialog — silently abort
+        if tunnel.passwordPromptCancelled {
+            let completion = sshTunnelCompletion
+            sshTunnelCompletion = nil
+            completion?(nil, nil)
+            return
+        }
+
+        let state = tunnel.state()
+
+        if state == SPMySQLProxyConnected {
+            let completion = sshTunnelCompletion
+            sshTunnelCompletion = nil
+            completion?(tunnel, nil)
+        } else if state == SPMySQLProxyIdle
+                    || state == SPMySQLProxyLaunchFailed
+                    || state == SPMySQLProxyForwardingFailed {
+            // SPMySQLProxyIdle covers auth failures, timeouts, permission denied, etc.
+            // SPSSHTunnel can report the terminal state before its background
+            // run loop has drained the final OpenSSH stderr notifications.
+            guard tunnel.failureDiagnosticsReady else { return }
+            let failure = SASSHTunnelFailure(
+                message: tunnel.lastError() ?? "SSH tunnel failed",
+                debugMessages: tunnel.debugMessages() ?? ""
+            )
+            let completion = sshTunnelCompletion
+            sshTunnelCompletion = nil
+            tunnel.disconnect()
+            completion?(nil, failure)
+        }
+        // Other transient states (e.g. SPMySQLProxyWaitingForAuth) are ignored;
+        // the tunnel will eventually transition to connected or idle/failed.
+    }
+}

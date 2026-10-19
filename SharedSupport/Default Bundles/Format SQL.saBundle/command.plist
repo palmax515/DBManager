@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>author</key>
+	<string>neokio</string>
+	<key>bundleVersion</key>
+	<integer>3</integer>
+	<key>category</key>
+	<string>Format</string>
+	<key>command</key>
+	<string>#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+local $/;
+my $sql = &lt;STDIN&gt;;
+$sql = '' unless defined $sql;
+print $sql and exit 0 unless $sql =~ /\S/;
+
+my @placeholders;
+my $placeholder_prefix;
+do {
+    $placeholder_prefix = "__SA_FMT_" . $$ . "_" . int(rand(1_000_000_000)) . "__";
+} while (index($sql, $placeholder_prefix) &gt;= 0);
+
+my $line_comment_break = "${placeholder_prefix}LINE_BREAK__";
+sub _stash_placeholder {
+    my ($value) = @_;
+    my $token = "${placeholder_prefix}" . scalar(@placeholders) . "__";
+    push @placeholders, $value;
+    return $token;
+}
+
+# Temporarily replace quoted strings and comments so formatter regexes do not alter their contents.
+my $working = $sql;
+$working =~ s{
+    (`(?:``|[^`])*`)
+  | ('(?:\\.|''|[^'])*')
+  | ("(?:\\.|""|[^"])*")
+  | (/\*.*?\*/)
+  | (--[^\n]*(?:\n|$))
+  | (\#[^\n]*(?:\n|$))
+}{
+    my $matched = $&amp;;
+    if (defined $5 || defined $6) {
+        my $had_newline = ($matched =~ s/\n\z//);
+        my $token = _stash_placeholder($matched);
+        $token .= $line_comment_break if $had_newline;
+        $token;
+    } else {
+        _stash_placeholder($matched);
+    }
+}gsex;
+
+$working =~ s/\r\n?/\n/g;
+$working =~ s/[ \t]+/ /g;
+$working =~ s/\s*;\s*/;\n/g;
+$working =~ s/\n+/ /g;
+$working =~ s/^\s+|\s+$//g;
+
+my @keywords = (
+    'LEFT OUTER JOIN', 'RIGHT OUTER JOIN', 'ALTER TABLE', 'CREATE TABLE',
+    'CREATE INDEX', 'DELETE FROM', 'INSERT INTO', 'UNION ALL', 'ORDER BY',
+    'GROUP BY', 'LEFT JOIN', 'RIGHT JOIN', 'INNER JOIN', 'OUTER JOIN',
+    'ON UPDATE', 'ON DELETE', 'SELECT', 'UPDATE', 'VALUES', 'HAVING',
+    'WHERE', 'LIMIT', 'FROM', 'JOIN', 'UNION', 'EXCEPT', 'INTERSECT',
+    'SET', 'AND', 'OR', 'XOR', 'ON', 'ADD', 'AFTER', 'DROP'
+);
+
+my @keyword_patterns = map {
+    my $pattern = quotemeta($_);
+    $pattern =~ s/\\ /\\s+/g;
+    $pattern;
+} sort { length($b) &lt;=&gt; length($a) } @keywords;
+
+my $keyword_pattern = join '|', @keyword_patterns;
+$working =~ s/\s*\b($keyword_pattern)\b\s*/"\n" . uc($1) . " "/ige;
+
+$working =~ s/\s+,/,/g;
+$working =~ s/,\s+/, /g;
+$working =~ s/\(\s+/(/g;
+$working =~ s/\s+\)/)/g;
+$working =~ s/[ ]+\n/\n/g;
+$working =~ s/\n{2,}/\n/g;
+$working =~ s/^\n+//;
+$working =~ s/\s+$//;
+
+my @raw_lines = split /\n/, $working;
+my @lines = grep { length } map {
+    my $line = $_;
+    $line =~ s/^\s+|\s+$//g;
+    $line;
+} @raw_lines;
+
+my $indent = 0;
+my @formatted_lines;
+for my $line (@lines) {
+    if ($line =~ /^\)/) {
+        $indent-- if $indent &gt; 0;
+    }
+
+    push @formatted_lines, ('  ' x $indent) . $line;
+
+    my $opens = () = $line =~ /\(/g;
+    my $closes = () = $line =~ /\)/g;
+    $indent += ($opens - $closes);
+    $indent = 0 if $indent &lt; 0;
+}
+
+my $formatted = join("\n", @formatted_lines);
+
+for my $idx (0 .. $#placeholders) {
+    my $token = "${placeholder_prefix}${idx}__";
+    my $value = $placeholders[$idx];
+    $formatted =~ s/\Q$token\E/$value/g;
+}
+$formatted =~ s/\Q$line_comment_break\E/\n/g;
+
+print $formatted;
+</string>
+	<key>contact</key>
+	<string></string>
+	<key>description</key>
+	<string>Format current query or selection in a nice formatted way</string>
+	<key>input</key>
+	<string>selectedtext</string>
+	<key>input_fallback</key>
+	<string>currentquery</string>
+	<key>internalKeyEquivalent</key>
+	<dict>
+		<key>characters</key>
+		<string>T</string>
+		<key>keyCode</key>
+		<integer>17</integer>
+		<key>modifierFlags</key>
+		<integer>1835008</integer>
+	</dict>
+	<key>isDefaultBundle</key>
+	<true/>
+	<key>keyEquivalent</key>
+	<string>^~@t</string>
+	<key>name</key>
+	<string>Format SQL</string>
+	<key>output</key>
+	<string>replaceselection</string>
+	<key>scope</key>
+	<string>inputfield</string>
+	<key>tooltip</key>
+	<string>Format query or selection</string>
+	<key>uuid</key>
+	<string>36E1F94D-D6C4-460A-A663-C694AF85E099</string>
+</dict>
+</plist>

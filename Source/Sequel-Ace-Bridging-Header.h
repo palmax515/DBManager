@@ -1,0 +1,73 @@
+//
+//  Sequel-Ace-Bridging-Header.h
+//  Sequel Ace
+//
+//  Created by Jakub Kaspar on 05.07.2020.
+//  Copyright © 2020-2022 Sequel-Ace. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+//
+//  Use this file to import your target's public headers that you would like to expose to Swift.
+//
+
+#import "SPAppController.h"
+#import "SPCustomQuery.h"
+#import "SPQueryController.h"
+#import "SPTextView.h"
+#import "SPSQLParser.h"
+#import "SPStringAdditions.h"
+#import "SPDatabaseDocument.h"
+#import "SPTablesList.h"
+#import "SPFieldEditorController.h"
+#import "SPTooltip.h"
+#import "YRKSpinningProgressIndicator.h"
+#import "SPTableContent.h"
+#import "SPCopyTable.h"
+#import "SPDataStorage.h"
+#import "SPNotLoaded.h"
+#import "SPProcessListController.h"
+#import "SPBundleManager.h"
+#import "SPWindow.h"
+
+#import "SPConstants.h"
+
+#import "SPFileManagerAdditions.h"
+
+// Modernization — expose ObjC types needed by new Swift code
+#import "SPBundleCommandRunner.h"
+#import "SPConnectionController.h"
+#import "SPFavoritesController.h"
+#import "SPCompatibility.h"
+#import "SPSplitView.h"
+#import "SPTreeNode.h"
+#import "SPGroupNode.h"
+#import "SPFavoriteNode.h"
+#import "SPFavoriteTextFieldCell.h"
+#import "SPFavoritesOutlineView.h"
+#import "SPFavoriteColorSupport.h"
+// Data-source protocol + constants for SAHelpViewerWindowController.swift.
+#import "SPHelpViewerClient.h"
+// Base class + protocol for the Swift preference pane SPMCPPreferencePane.swift.
+#import "SPPreferencePane.h"
+#import <SPMySQL/SPMySQLConnectionDelegate.h>
+// Also pulls in SPMySQLResult and the querying category (queryString:,
+// escapeAndQuoteString:, queryErrored, ...) needed by SPAppController+MCP.swift.
+#import <SPMySQL/SPMySQLConnection.h>
+#import "SPSSHTunnel.h"

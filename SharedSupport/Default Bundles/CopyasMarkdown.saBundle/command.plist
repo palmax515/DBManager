@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>author</key>
+	<string>Christian Nadolle</string>
+	<key>bundleVersion</key>
+	<integer>3</integer>
+	<key>category</key>
+	<string>Copy</string>
+	<key>command</key>
+	<string>cat | /usr/bin/perl markdown-table.pl  | __CF_USER_TEXT_ENCODING=$UID:0x8000100:0x8000100 pbcopy</string>
+	<key>contact</key>
+	<string>tvg@udk.qr</string>
+	<key>description</key>
+	<string>Copy selected result rows without BLOB fields as Markdown table.
+
+Version 1.0</string>
+	<key>input</key>
+	<string>selectedtablerowsastab</string>
+	<key>isDefaultBundle</key>
+	<true/>
+	<key>keyEquivalent</key>
+	<string></string>
+	<key>name</key>
+	<string>Copy as Markdown</string>
+	<key>scope</key>
+	<string>datatable</string>
+	<key>tooltip</key>
+	<string>Copy selection as Markdown table</string>
+	<key>trigger</key>
+	<string>none</string>
+	<key>uuid</key>
+	<string>5FA78ACE-0557-43B0-939D-555AC2042668</string>
+	<key>withblob</key>
+	<string>exclude</string>
+</dict>
+</plist>

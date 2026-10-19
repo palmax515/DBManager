@@ -1,0 +1,525 @@
+//
+//  SPTableInfo.m
+//  sequel-pro
+//
+//  Created by Ben Perry on Jun 6, 2008.
+//  Copyright (c) 2008 Ben Perry. All rights reserved.
+//
+//  Permission is hereby granted, free of charge, to any person
+//  obtaining a copy of this software and associated documentation
+//  files (the "Software"), to deal in the Software without
+//  restriction, including without limitation the rights to use,
+//  copy, modify, merge, publish, distribute, sublicense, and/or sell
+//  copies of the Software, and to permit persons to whom the
+//  Software is furnished to do so, subject to the following
+//  conditions:
+//
+//  The above copyright notice and this permission notice shall be
+//  included in all copies or substantial portions of the Software.
+//
+//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+//  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+//  OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+//  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+//  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+//  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+//  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+//  OTHER DEALINGS IN THE SOFTWARE.
+//
+//  More info at <https://github.com/sequelpro/sequelpro>
+
+#import "SPTableInfo.h"
+#import "ImageAndTextCell.h"
+#import "SPDatabaseDocument.h"
+#import "SPTablesList.h"
+#import "SPTableData.h"
+#import "SPActivityTextFieldCell.h"
+#import "SPTableTextFieldCell.h"
+#import "SPAppController.h"
+#import "sequel-ace-Swift.h"
+
+@implementation SPTableInfo
+
+#pragma mark -
+#pragma mark Initialisation
+
+- (instancetype)init
+{
+	if ((self = [super init])) {
+		info = [[NSMutableArray alloc] init];
+		activities = [[NSMutableArray alloc] init];
+		
+		_activitiesWillBeUpdated = NO;
+	}
+
+	return self;
+}
+
+- (void)awakeFromNib
+{
+    [super awakeFromNib];
+    
+	[[NSNotificationCenter defaultCenter] addObserver:self
+											 selector:@selector(tableChanged:)
+												 name:SPTableChangedNotification
+											   object:tableDocumentInstance];
+
+	[[NSNotificationCenter defaultCenter] addObserver:self
+											 selector:@selector(tableChanged:)
+												 name:SPTableInfoChangedNotification
+											   object:tableDocumentInstance];
+
+	// Register activities update notifications for add/remove BASH commands etc.
+	[[NSNotificationCenter defaultCenter] addObserver:self 
+											 selector:@selector(updateActivities)
+												 name:SPActivitiesUpdateNotification
+											   object:nil];
+
+	// Add activities header
+	[activities addObject:@{@"name" : NSLocalizedString(@"ACTIVITIES", @"header for activities pane")}];
+	[activitiesTable reloadData];
+
+	// Add Information header
+	[info addObject:NSLocalizedString(@"TABLE INFORMATION", @"header for table info pane")];
+	[infoTable reloadData];
+}
+
+#pragma mark -
+
+/**
+ * Remove an activity directly from the list since an update will be performer in the background
+ * to signilize the user that an activity was cancelled at once
+ */
+- (void)removeActivity:(NSInteger)pid
+{
+	for (id cmd in activities) 
+	{
+		if ([[cmd objectForKey:@"pid"] integerValue] == pid) {
+			[activities removeObject:cmd];
+			break;
+		}
+	}
+	
+	[activitiesTable reloadData];
+}
+
+- (void)updateActivities
+{
+	NSMutableArray *acts = [NSMutableArray array];
+	
+	[acts removeAllObjects];
+	[acts addObject:@{@"name" : NSLocalizedString(@"ACTIVITIES", @"header for activities pane")}];
+	[acts addObjectsFromArray:[tableDocumentInstance runningActivities]];
+	[acts addObjectsFromArray:[SPAppDelegate runningActivities]];
+	
+	_activitiesWillBeUpdated = YES;
+	
+	[activities setArray:acts];
+	
+	_activitiesWillBeUpdated = NO;
+	
+	[activitiesTable reloadData];
+	[infoTable deselectAll:nil];
+	[activitiesTable deselectAll:nil];
+}
+
+/**
+ * Notification to indicate the table has changed and that the table info requires
+ * reloading for display.  This is called on table changes, and also (with a nil argument)
+ * during certain refresh operations to trigger a data update.
+ * This function is not thread-safe.
+ */
+- (void)tableChanged:(NSNotification *)notification
+{
+	
+	[info removeAllObjects];
+
+	if (![tableListInstance tableName]) {
+		[info addObject:NSLocalizedString(@"INFORMATION", @"header for blank info pane")];
+
+		if ([[tableListInstance selectedTableItems] count]) {
+			[info addObject:NSLocalizedString(@"multiple selection", @"multiple selection")];
+		}
+		
+		[infoTable reloadData];
+		
+		return;
+	}
+
+	// Get TABLE information
+	if ([tableListInstance tableType] == SPTableTypeTable) {
+
+		[info addObject:NSLocalizedString(@"TABLE INFORMATION", @"header for table info pane")];
+
+		if ([tableListInstance tableName]) {
+
+			// Retrieve the table status information via the data cache
+			NSDictionary *tableStatus = [tableDataInstance statusValues];
+
+			// Check for errors
+            if (![tableStatus count]) {
+                [info addObject:NSLocalizedString(@"error occurred", @"error occurred")];
+                SPLog(@"tableDataInstance TABLE INFORMATION statusValues error, returning");
+                return;
+            }
+
+			// Add the creation and update dates to the infoTable; a date that is
+			// missing or cannot be read (InnoDB tables have no update time) adds
+			// no row, rather than a label with nothing behind it
+			[info safeAddObject:[NSDateFormatter mysqlDateTimeRowWithLabelFormat:NSLocalizedString(@"created: %@", @"Table Info Section : time+date table was created at") value:[tableStatus objectForKey:@"Create_time"] dateStyle:NSDateFormatterShortStyle timeStyle:NSDateFormatterShortStyle]];
+			[info safeAddObject:[NSDateFormatter mysqlDateTimeRowWithLabelFormat:NSLocalizedString(@"updated: %@", @"updated: %@") value:[tableStatus objectForKey:@"Update_time"] dateStyle:NSDateFormatterShortStyle timeStyle:NSDateFormatterShortStyle]];
+			
+			// Check for 'Engine' == NULL - should not happen (at least not with MySQL)
+			if (![[tableStatus objectForKey:@"Engine"] isNSNull]) {
+				[info safeAddObject:[NSString stringWithFormat:NSLocalizedString(@"engine: %@", @"Table Info Section : Table Engine"), [tableStatus objectForKey:@"Engine"]]];
+			}
+
+			// Check for 'Rows' == NULL - information_schema database doesn't report row count for it's tables
+			if (![[tableStatus objectForKey:@"Rows"] isNSNull]) {
+
+                id obj = [tableStatus objectForKey:@"Rows"];
+
+                long long tableStatusRowsAsLong = 0;
+
+                if([obj isKindOfClass:[NSString class]]){
+                    tableStatusRowsAsLong = [obj longLongValue];
+                }
+
+                SPLog(@"tableStatusRowsAsLong = %lld", tableStatusRowsAsLong);
+
+				[info safeAddObject:[NSString stringWithFormat:[[tableStatus objectForKey:@"RowsCountAccurate"] boolValue] ? NSLocalizedString(@"rows: %@", @"Table Info Section : number of rows (exact value)") : NSLocalizedString(@"rows: ~%@", @"Table Info Section : number of rows (estimated value)"),
+					[NSNumberFormatter.decimalStyleFormatter stringFromNumber:[NSNumber numberWithLongLong:tableStatusRowsAsLong]]]];
+			}
+			
+			// Check for 'Data_Length' == NULL (see PR #2606)
+			if([[tableStatus objectForKey:@"Data_length"] unboxNull]) {
+
+                id obj = [tableStatus objectForKey:@"Data_length"];
+
+                long long tableStatusDataLengthAsLong = 0;
+
+                if([obj isKindOfClass:[NSString class]]){
+                    tableStatusDataLengthAsLong = [obj longLongValue];
+                }
+
+                SPLog(@"tableStatusDataLengthAsLong = %lld", tableStatusDataLengthAsLong);
+
+                [info safeAddObject:[NSString stringWithFormat:NSLocalizedString(@"size: %@", @"Table Info Section : table size on disk"), [NSByteCountFormatter stringWithByteSize:tableStatusDataLengthAsLong]]];
+			}
+
+			NSString *tableEnc = [tableDataInstance tableEncoding];
+			NSString *tableColl = [tableStatus safeObjectForKey:@"Collation"];
+
+			if([tableColl length]) {
+				// instead of @"latin1 (latin1_german_ci)" we can just show @"latin1 (german_ci)"
+				if([tableColl hasPrefix:[NSString stringWithFormat:@"%@_",tableEnc]]) tableColl = [tableColl substringFromIndex:([tableEnc length]+1)];
+				[info addObject:[NSString stringWithFormat:NSLocalizedString(@"encoding: %1$@ (%2$@)", @"Table Info Section : $1 = table charset, $2 = table collation"), tableEnc, tableColl]];
+			}
+			else {
+				[info addObject:[NSString stringWithFormat:NSLocalizedString(@"encoding: %1$@", @"Table Info Section : $1 = table charset"), tableEnc]];
+			}
+			
+			if (![[tableStatus objectForKey:@"Auto_increment"] isNSNull]) {
+
+                id obj = [tableStatus objectForKey:@"Auto_increment"];
+
+                long long tableStatusAutoIncrementAsLong = 0;
+
+                if([obj isKindOfClass:[NSString class]]){
+                    tableStatusAutoIncrementAsLong = [obj longLongValue];
+                }
+
+                SPLog(@"tableStatusAutoIncrementAsLong = %lld", tableStatusAutoIncrementAsLong);
+
+				[info addObject:[NSString stringWithFormat:NSLocalizedString(@"auto_increment: %@", @"Table Info Section : current value of auto_increment"),
+					[NSNumberFormatter.decimalStyleFormatter stringFromNumber:[NSNumber numberWithLongLong:tableStatusAutoIncrementAsLong]]]];
+			}
+            
+            //Show create_options
+            NSString *tableCreateOptions = [tableStatus safeObjectForKey:@"Create_options"];
+            if([tableCreateOptions length]) {
+                [info addObject:[NSString stringWithFormat:NSLocalizedString(@"create_options: %@", @"Table Info Section : Table Create Options"), tableCreateOptions]];
+            }
+
+		}
+	}
+	// Get PROC/FUNC information
+	else if ([tableListInstance tableType] == SPTableTypeProc || [tableListInstance tableType] == SPTableTypeFunc) {
+
+		if ([tableListInstance tableType] == SPTableTypeProc)
+			[info addObject:NSLocalizedString(@"PROCEDURE INFORMATION", @"header for procedure info pane")];
+		else
+			[info addObject:NSLocalizedString(@"FUNCTION INFORMATION", @"header for function info pane")];
+
+		if ([tableListInstance tableName]) {
+
+			// Retrieve the table status information via the data cache
+			NSDictionary *tableStatus = [tableDataInstance statusValues];
+
+			// Check for errors
+			if (![tableStatus count]) {
+                SPLog(@"tableDataInstance PROCEDURE/FUNCTION INFORMATION statusValues error, returning");
+				[info addObject:NSLocalizedString(@"error occurred", @"error occurred")];
+				return;
+			}
+
+			// Add the creation and update dates to the infoTable; a date that is
+			// missing or cannot be read adds no row
+			[info safeAddObject:[NSDateFormatter mysqlDateTimeRowWithLabelFormat:NSLocalizedString(@"created: %@", @"created: %@") value:[tableStatus objectForKey:@"CREATED"] dateStyle:NSDateFormatterShortStyle timeStyle:NSDateFormatterShortStyle]];
+			[info safeAddObject:[NSDateFormatter mysqlDateTimeRowWithLabelFormat:NSLocalizedString(@"updated: %@", @"updated: %@") value:[tableStatus objectForKey:@"LAST_ALTERED"] dateStyle:NSDateFormatterShortStyle timeStyle:NSDateFormatterShortStyle]];
+
+			// Check for 'SQL ACCESS' and deterministic
+			if (![[tableStatus objectForKey:@"SQL_DATA_ACCESS"] isNSNull] && ![[tableStatus objectForKey:@"IS_DETERMINISTIC"] isNSNull]) {
+				[info addObject:[NSString stringWithFormat:NSLocalizedString(@"data access: %@ (%@)", @"data access: %@ (%@)"), [tableStatus objectForKey:@"SQL_DATA_ACCESS"], ([[tableStatus objectForKey:@"IS_DETERMINISTIC"] isEqualToString:@"YES"]) ? @"deterministic" : @"non-deterministic"]];
+			}
+
+			// Check for 'DTD_IDENTIFIER' for FUNCTIONS only
+			if ([tableListInstance tableType] == SPTableTypeFunc) {
+				if (![[tableStatus objectForKey:@"DTD_IDENTIFIER"] isNSNull]) {
+					[info addObject:[NSString stringWithFormat:NSLocalizedString(@"return type: %@", @"return type: %@"), [tableStatus objectForKey:@"DTD_IDENTIFIER"]]];
+				}
+			}
+
+			// Check for 'SECURITY_TYPE'
+			if (![[tableStatus objectForKey:@"SECURITY_TYPE"] isNSNull]) {
+				[info addObject:[NSString stringWithFormat:NSLocalizedString(@"execution privilege: %@", @"execution privilege: %@"), [tableStatus objectForKey:@"SECURITY_TYPE"]]];
+			}
+
+			// Check for 'DEFINER'
+			if (![[tableStatus objectForKey:@"DEFINER"] isNSNull]) {
+				[info addObject:[NSString stringWithFormat:NSLocalizedString(@"definer: %@", @"definer: %@"), [tableStatus objectForKey:@"DEFINER"]]];
+			}
+
+		}
+	}
+	// Get VIEW information
+	else if ([tableListInstance tableType] == SPTableTypeView) {
+
+		[info addObject:NSLocalizedString(@"VIEW INFORMATION", @"header for view info pane")];
+
+		if ([tableListInstance tableName]) {
+
+			// Retrieve the table status information via the data cache
+			NSDictionary *tableStatus = [tableDataInstance statusValues];
+
+			// Check for errors
+			if (![tableStatus count]) {
+                SPLog(@"tableDataInstance VIEW INFORMATION statusValues error, returning");
+				[info addObject:NSLocalizedString(@"error occurred", @"error occurred")];
+				return;
+			}
+
+			// Check for 'DEFINER' == NULL
+			// Note: In mysql 8.0 definer and all the other following fields are missing in the result set for information_schema system views!
+			if ([[tableStatus objectForKey:@"DEFINER"] unboxNull]) {
+
+				// Add the definer to the infoTable
+				[info addObject:[NSString stringWithFormat:NSLocalizedString(@"definer: %@", @"definer: %@"), [tableStatus objectForKey:@"DEFINER"]]];
+
+				// Check for 'SECURITY_TYPE'
+				if (![[tableStatus objectForKey:@"SECURITY_TYPE"] isNSNull]) {
+					[info addObject:[NSString stringWithFormat:NSLocalizedString(@"execution privilege: %@", @"execution privilege: %@"), [tableStatus objectForKey:@"SECURITY_TYPE"]]];
+				}
+
+				// Check for 'IS_UPDATABLE'
+				if (![[tableStatus objectForKey:@"IS_UPDATABLE"] isNSNull]) {
+					[info addObject:[NSString stringWithFormat:NSLocalizedString(@"is updatable: %@", @"is updatable: %@"), [tableStatus objectForKey:@"IS_UPDATABLE"]]];
+				}
+
+				// Check for 'CHECK_OPTION'
+				if (![[tableStatus objectForKey:@"CHECK_OPTION"] isNSNull]) {
+					[info addObject:[NSString stringWithFormat:NSLocalizedString(@"check option: %@", @"check option: %@"), [tableStatus objectForKey:@"CHECK_OPTION"]]];
+				}
+
+				// Check for 'CHARACTER_SET_CLIENT'
+				if (![[tableStatus objectForKey:@"CHARACTER_SET_CLIENT"] isNSNull]) {
+					[info addObject:[NSString stringWithFormat:NSLocalizedString(@"character set client: %@", @"character set client: %@"), [tableStatus objectForKey:@"CHARACTER_SET_CLIENT"]]];
+				}
+
+				// Check for 'COLLATION_CONNECTION'
+				if (![[tableStatus objectForKey:@"COLLATION_CONNECTION"] isNSNull]) {
+					[info addObject:[NSString stringWithFormat:NSLocalizedString(@"collation connection: %@", @"collation connection: %@"), [tableStatus objectForKey:@"COLLATION_CONNECTION"]]];
+				}
+			}
+		}
+
+	}
+
+	[infoTable reloadData];
+}
+
+#pragma mark -
+#pragma mark TableView datasource methods
+
+/**
+ * The number of rows the table information pane or the activities pane holds.
+ */
+- (NSInteger)numberOfRowsInTableView:(NSTableView *)tableView
+{
+	return (tableView == infoTable) ? [info count] : [activities count];
+}
+
+/**
+ * The value of one row, setting up the cell that row is drawn with.
+ *
+ * The table information pane hands out the strings it collected. In the activities
+ * pane row 0 carries the pane's header, and every other row an activity cell showing
+ * the activity's name and, for a bash command, its scope and start time.
+ */
+- (id)tableView:(NSTableView *)tableView objectValueForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)rowIndex
+{
+	if (tableView == infoTable) {
+		return [info safeObjectAtIndex:rowIndex];
+	} 
+	else {
+		if (rowIndex == 0) {
+			SPTableTextFieldCell *c = [[SPTableTextFieldCell alloc] initTextCell:NSLocalizedString(@"ACTIVITIES", @"header for activities pane")];
+			
+			[tableColumn setDataCell:c];
+			
+			return NSLocalizedString(@"ACTIVITIES", @"header for activities pane");
+		}
+		else if (!_activitiesWillBeUpdated && rowIndex > 0 && rowIndex < (NSInteger)[activities count]) {
+            NSDictionary *dict = [activities safeObjectAtIndex:rowIndex];
+			SPActivityTextFieldCell *c = [[SPActivityTextFieldCell alloc] init];
+			[c setActivityName:[[dict safeObjectForKey:@"contextInfo"] safeObjectForKey:@"name"]];
+			
+			if ([dict objectForKey:@"type"] && [[dict objectForKey:@"type"] isEqualToString:@"bashcommand"]) {
+				[c setContextInfo:[NSDictionary dictionaryWithObjectsAndKeys:[dict objectForKey:@"type"], @"type", [dict objectForKey:@"pid"], @"pid", nil]];
+				[c setActivityInfo:[NSString stringWithFormat:@"[%@] %@: %@", [[dict objectForKey:@"contextInfo"] objectForKey:@"scope"], NSLocalizedString(@"started", @"started"), [dict objectForKey:@"starttime"]]];
+			} 
+			else {
+				[c setActivityInfo:@"..."];
+			}
+			
+			[tableColumn setDataCell:c];
+			
+			return [dict objectForKey:@"name"];
+		} 
+		else {
+			SPActivityTextFieldCell *c = [[SPActivityTextFieldCell alloc] init];
+			
+			[c setActivityName:@"..."];
+			[c setActivityInfo:@""];
+			[tableColumn setDataCell:c];
+			
+			return @"...";
+		}
+		
+		return @"";
+	}
+}
+
+/**
+ * Give the header row more height than the rows beneath it.
+ */
+- (CGFloat)tableView:(NSTableView *)tableView heightOfRow:(NSInteger)row
+{
+	return (row == 0 ? 25 : [tableView rowHeight]);
+}
+
+/**
+ * Let only the header row be selected in the table information pane, since its rows
+ * are read-only; the activities pane allows every row.
+ */
+- (BOOL)tableView:(NSTableView *)tableView shouldSelectRow:(NSInteger)rowIndex
+{
+	if (rowIndex == 0) return YES;
+	
+	if (tableView == infoTable) {
+		return NO;
+	} 
+	else {
+		return YES;
+	}
+	
+	return NO;
+}
+
+/**
+ * Take a click on a header row as the switch between the table information and the
+ * activities pane, and never begin an edit.
+ */
+- (BOOL)tableView:(NSTableView *)tableView shouldEditTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)rowIndex
+{
+	if (rowIndex > 0) return NO;
+
+	if (![tableInfoScrollView isHidden]) {
+		[tableDocumentInstance setActivityPaneHidden:@0];
+		[[activitiesTable window] makeFirstResponder:activitiesTable];
+	} 
+	else {
+		[tableDocumentInstance setActivityPaneHidden:@1];
+		[[infoTable window] makeFirstResponder:infoTable];
+	}
+
+	[infoTable deselectAll:nil];
+	[activitiesTable deselectAll:nil];
+
+	[self updateActivities];
+	
+	return NO;
+}
+
+/**
+ * The tooltip for a row of the activities pane: "Cancel" while the pointer is over the
+ * cancel button at the row's right-hand edge, otherwise the activity's name. Rows of
+ * the table information pane and the header row get none.
+ */
+- (NSString *)tableView:(NSTableView *)tableView toolTipForCell:(NSCell *)cell rect:(NSRectPointer)rect tableColumn:(NSTableColumn *)tableColumn row:(NSInteger)rowIndex mouseLocation:(NSPoint)mouseLocation
+{
+	if (tableView == activitiesTable) {
+		if (rowIndex == 0) return @"";
+		
+		if (mouseLocation.x > rect->origin.x + rect->size.width - 30) {
+			return NSLocalizedString(@"Cancel", @"cancel");
+		}
+
+        NSDictionary *dict = [activities safeObjectAtIndex:rowIndex];
+
+        return (([[dict safeObjectForKey:@"contextInfo"] safeObjectForKey:@"name"])) ?: @"";
+
+	}
+	
+	return nil;
+}
+
+/**
+ * Draw the top row of either pane as a group row.
+ */
+- (BOOL)tableView:(NSTableView *)tableView isGroupRow:(NSInteger)row
+{
+	// This makes the top row (TABLE INFORMATION/ACTIVITIES) have the diff styling
+	return row == 0;
+}
+
+/**
+ * Give the table information rows their property icon before they are drawn.
+ *
+ * The header row, the other columns and the activities table are left plain.
+ */
+- (void)tableView:(NSTableView *)tableView willDisplayCell:(id)cell forTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)rowIndex
+{
+	if (tableView == infoTable) {
+		if (rowIndex > 0 && [[tableColumn identifier] isEqualToString:@"info"]) {
+			[(ImageAndTextCell*)cell setImage:[NSImage imageNamed:@"table-property"]];
+			[(ImageAndTextCell*)cell setIndentationLevel:0];
+			[(ImageAndTextCell*)cell setDrawsBackground:NO];
+		} 
+		else {
+			[(ImageAndTextCell*)cell setImage:nil];
+			[(ImageAndTextCell*)cell setIndentationLevel:0];
+		}
+	}
+}
+
+#pragma mark -
+
+/**
+ * Stop listening for the notifications this controller subscribed to.
+ */
+- (void)dealloc {
+	[[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+@end

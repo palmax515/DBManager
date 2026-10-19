@@ -1,0 +1,2481 @@
+//
+//  SPRuleFilterController.m
+//  sequel-pro
+//
+//  Created by Max Lohrmann on 04.05.18.
+//  Copyright (c) 2018 Max Lohrmann. All rights reserved.
+//
+//  Permission is hereby granted, free of charge, to any person
+//  obtaining a copy of this software and associated documentation
+//  files (the "Software"), to deal in the Software without
+//  restriction, including without limitation the rights to use,
+//  copy, modify, merge, publish, distribute, sublicense, and/or sell
+//  copies of the Software, and to permit persons to whom the
+//  Software is furnished to do so, subject to the following
+//  conditions:
+//
+//  The above copyright notice and this permission notice shall be
+//  included in all copies or substantial portions of the Software.
+//
+//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+//  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+//  OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+//  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+//  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+//  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+//  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+//  OTHER DEALINGS IN THE SOFTWARE.
+//
+//  More info at <https://github.com/sequelpro/sequelpro>
+
+#import "SPRuleFilterController.h"
+#import "SPQueryController.h"
+#import "SPDatabaseDocument.h"
+#import "RegexKitLite.h"
+#import "SPContentFilterManager.h"
+#import "SPFunctions.h"
+#import "SPTableFilterParser.h"
+#import "SPTableContent.h"
+
+#import "sequel-ace-Swift.h"
+
+typedef NS_ENUM(NSInteger, RuleNodeType) {
+	RuleNodeTypeColumn,
+	RuleNodeTypeString,
+	RuleNodeTypeOperator,
+	RuleNodeTypeArgument,
+	RuleNodeTypeConnector,
+	RuleNodeTypeEnable,
+};
+
+NSString * const SPRuleFilterHeightChangedNotification = @"SPRuleFilterHeightChanged";
+
+/**
+ * The type of filter rule that the current item represents.
+ */
+const NSString * const SerFilterClass = @"filterClass";
+/**
+ * The current rule is a group row (an "AND" or "OR" expression with children)
+ */
+const NSString * const SerFilterClassGroup = @"groupNode";
+/**
+ * The current rule is a filter expression
+ */
+const NSString * const SerFilterClassExpression = @"expressionNode";
+/**
+ * Group Nodes only:
+ * Indicates whether the group is a conjunction.
+ * If YES, the children will be combined using "AND", otherwise using "OR".
+ */
+const NSString * const SerFilterGroupIsConjunction = @"isConjunction";
+/**
+ * Group Nodes only:
+ * An array of child filter rules (which again can be group or expression rules)
+ */
+const NSString * const SerFilterGroupChildren = @"children";
+/**
+ * Expression Nodes only:
+ * The name of the column to filter in (left side expression)
+ *
+ * Legacy names:
+ *   @"filterField", fieldField
+ */
+const NSString * const SerFilterExprColumn = @"column";
+/**
+ * Expression Nodes only:
+ * The data type grouping of the column for applicable filters
+ */
+const NSString * const SerFilterExprType = @"filterType";
+/**
+ * Expression Nodes only:
+ * The title of the filter operator to apply
+ *
+ * Legacy names:
+ *   @"filterComparison", compareField
+ */
+const NSString * const SerFilterExprComparison = @"filterComparison";
+/**
+ * Expression Nodes only:
+ * The values to apply the filter with (an array of 0 or more elements)
+ *
+ * Legacy names:
+ *   @"filterValue", argumentField
+ *   @"firstBetweenField", @"secondBetweenField", firstBetweenField, secondBetweenField
+ */
+const NSString * const SerFilterExprValues = @"filterValues";
+/**
+ * Expression Nodes only:
+ * the filter definition dictionary (as in ContentFilters.plist)
+ * for the filter represented by SerFilterExprComparison.
+ *
+ * This item is not designed to be serialized to disk
+ */
+const NSString * const SerFilterExprDefinition = @"_filterDefinition";
+/**
+ * Expression Nodes only:
+ * Is the filter expression enabled for filtering?
+ */
+const NSString * const SerFilterExprEnabled = @"enabled";
+/**
+ * Expression Nodes only:
+ * Is this a row seeded empty - for a newly selected table, or as a new AND/OR group's only row -
+ * still unchecked and waiting for its first edit? (see SARuleFilterPendingStarter). Absent means no.
+ */
+const NSString * const SerFilterExprPendingStarter = @"pendingStarter";
+
+#pragma mark -
+
+@interface RuleNode : NSObject {
+	RuleNodeType type;
+}
+@property(assign, nonatomic) RuleNodeType type;
+/**
+ * This method checks if another node can take the place of self in a filter row.
+ * The RuleNode implementation checks only that both nodes are of the same type.
+ */
+- (BOOL)isViableReplacementFor:(RuleNode *)other;
+@end
+
+@interface ColumnNode : RuleNode {
+	NSString *name;
+	NSString *typegrouping;
+	NSArray *operatorCache;
+	NSUInteger opCacheVersion;
+}
+@property(copy, nonatomic) NSString *name;
+@property(copy, nonatomic) NSString *typegrouping;
+@property(strong, nonatomic) NSArray *operatorCache;
+@property(assign, nonatomic) NSUInteger opCacheVersion;
+@end
+
+@interface StringNode : RuleNode {
+	NSString *value;
+}
+@property(copy, nonatomic) NSString *value;
+@end
+
+@interface OpNode : RuleNode {
+	// Note: The main purpose of this field is to have @"=" for column A and @"=" for column B to return NO in -isEqual:
+	//       because otherwise NSRuleEditor will get confused and blow up.
+	ColumnNode *__weak parentColumn;
+	NSDictionary *settings;
+	NSDictionary *filter;
+}
+@property (weak, nonatomic) ColumnNode *parentColumn;
+@property (strong, nonatomic) NSDictionary *settings;
+@property (strong, nonatomic) NSDictionary *filter;
+/**
+ * This method is only a shortcut to `-[[node filter] objectForKey:@"MenuLabel"]`
+ */
+- (NSString *)name;
+@end
+
+@interface ArgNode : RuleNode {
+	NSDictionary *filter;
+	NSUInteger argIndex;
+	NSString *initialValue;
+}
+@property (copy, nonatomic) NSString *initialValue;
+@property (strong, nonatomic) NSDictionary *filter;
+@property (assign, nonatomic) NSUInteger argIndex;
+@end
+
+@interface ConnectorNode : RuleNode {
+	NSDictionary *filter;
+	NSUInteger labelIndex;
+}
+@property (strong, nonatomic) NSDictionary *filter;
+@property (assign, nonatomic) NSUInteger labelIndex;
+@end
+
+@interface EnableNode : RuleNode {
+	BOOL initialState;
+	BOOL allowsMixedState;
+}
+@property (assign, nonatomic) BOOL initialState;
+@property (assign, nonatomic) BOOL allowsMixedState;
+/** Whether the row is the seeded starter row restored from a saved filter; its checkbox is tracked again. */
+@property (assign, nonatomic) BOOL pendingStarter;
+@end
+
+#pragma mark -
+
+/**
+ * TODO:
+ * This class shouldn't even exist to begin with.
+ * Its sad story begins with this call in `-[SPRuleFilterController dealloc]`:
+ *
+ *   [filterRuleEditor unbind:@"rows"];
+ *
+ * `-dealloc` may not be the best method to undo what we did in `-awakeFromNib`, but it's the only thing we have.
+ * Also we have to unbind this object, or we may receive zombie calls later on because the binding is unretained.
+ * Which brings us to another huge mistake Apple made in the implementation of -unbind. The call looks like this:
+ *
+ *   - [NSRulEditor unbind:]
+ *     - [NSRuleEditor _rootRowsArray]
+ *       - [NSRuleEditor->_boundArrayOwner mutableArrayValueForKeyPath:NSRuleEditor->_boundArrayKeyPath]
+ *
+ * -mutableArrayValueForKeyPath: is the culprit here since it does not return the object itself ("model") but
+ * instead returns an autoreleased proxy object which retains the parent object of the key.
+ *
+ * That explains why we can't put "model" into SPRuleFilterController:
+ * The `-[NSRuleEditor unbind:]` would cause a call to `-[SPRuleFilterController retain]` from within
+ * `-[SPRuleFilterController dealloc]` (which is pointless since there is no way out from -dealloc).
+ * This wouldn't be a problem if the proxy object was released again while dealloc is still on the stack, but
+ * since it is autoreleased we end up with a zombie call again.
+ *
+ * ModelContainer is a dummy intermediate to prevent this, since it is still valid when we enter -dealloc and
+ * trigger -unbind and thus can handle the -retain by the proxy object.
+ */
+@interface ModelContainer : NSObject
+{
+	NSMutableArray *model;
+}
+// This is the binding used by NSRuleEditor for the current state
+@property (strong, nonatomic) NSMutableArray *model;
+@end
+
+#pragma mark -
+
+@interface SPRuleFilterController () <NSRuleEditorDelegate, NSTextFieldDelegate, SPFilterRuleEditorDropHandler>
+
+@property (readwrite, assign, nonatomic) CGFloat preferredHeight;
+/** The seeded starter row while it waits, unchecked, for its first edit; see -addStarterFilterExpression. */
+@property (strong, nonatomic) SARuleFilterPendingStarter *pendingStarter;
+
+/** Checks the unchecked starter row when `row` is that row, and updates the preview: editing it means filtering by it. */
+- (void)_enablePendingStarterInRow:(NSInteger)row;
+
+- (NSArray *)_compareTypesForColumn:(ColumnNode *)colNode;
+- (IBAction)_textFieldAction:(id)sender;
+- (IBAction)_editFiltersAction:(id)sender;
+- (void)_contentFiltersHaveBeenUpdated:(NSNotification *)notification;
++ (NSDictionary *)_flattenSerializedFilter:(NSDictionary *)in;
+static BOOL SerIsGroup(NSDictionary *dict);
+- (NSDictionary *)_serializedFilterIncludingFilterDefinition:(BOOL)includeDefinition withDisabled:(BOOL)includeDisabled;
++ (void)_writeFilterTree:(NSDictionary *)in toString:(NSMutableString *)out wrapInParenthesis:(BOOL)wrap binary:(BOOL)isBINARY error:(NSError **)err;
+- (NSMutableDictionary *)_restoreSerializedFilter:(NSDictionary *)serialized;
+static void _addIfNotNil(NSMutableArray *array, id toAdd);
+- (ColumnNode *)_columnForName:(NSString *)name;
+- (OpNode *)_operatorNamed:(NSString *)title forColumn:(ColumnNode *)col;
+- (BOOL)_focusOnFieldInSubtree:(NSDictionary *)dict;
+- (void)_resize;
+- (void)openContentFilterManagerForFilterType:(NSString *)filterType;
+- (IBAction)filterTable:(id)sender;
+- (IBAction)_menuItemInRuleEditorClicked:(id)sender;
+- (void)_pretendPlayRuleEditorForCriteria:(NSMutableArray *)criteria
+                            displayValues:(NSMutableArray *)displayValues
+                                    inRow:(NSInteger)row
+              tryingToPreserveOldCriteria:(NSArray *)oldCriteria
+                            displayValues:(NSArray *)oldDisplayValues;
+- (void)_ensureValidOperatorCache:(ColumnNode *)col;
+- (IBAction)addFilter:(id)sender;
+- (void)_updateButtonStates;
+- (void)_doChangeToRuleEditorData:(void (^)(void))duringBlock;
+- (void)_invokeTarget:(id)aTarget action:(SEL)anAction withObject:(id)object;
+- (void)_invokeFilterTargetActionWithObject:(id)object;
+- (IBAction)_checkboxClicked:(id)sender;
+- (void)_updateFilterPreview;
+- (IBAction)_rootConjunctionPopUpChanged:(id)sender;
+- (void)_syncRootConjunctionPopUp;
+- (void)_updateCheckedStateUpwardsFromCompoundRow:(NSInteger)row;
+- (void)_updateCheckedStateForRow:(NSInteger)row to:(NSControlStateValue)newState;
+- (void)_updateCheckedStateDownwardsFromCompoundRow:(NSInteger)row to:(NSControlStateValue)newState;
+- (NSControlStateValue)_recalculateCheckboxStatesFromRow:(NSInteger)row;
+- (NSControlStateValue)_checkboxStateForRow:(NSInteger)row;
+@end
+
+@implementation SPRuleFilterController
+
+@synthesize preferredHeight = preferredHeight;
+@synthesize target = target;
+@synthesize action = action;
+
+- (instancetype)init
+{
+	if((self = [super init])) {
+		columns = [[NSMutableArray alloc] init];
+		_modelContainer = [[ModelContainer alloc] init];
+		preferredHeight = 0.0;
+		target = nil;
+		action = NULL;
+		opNodeCacheVersion = 1;
+		isDoingChangeCausedOutsideOfRuleEditor = NO;
+		previousRowCount = 0;
+		rootIsConjunction = YES;
+
+		// Init default filters for Content Browser
+		contentFilters = [[NSMutableDictionary alloc] init];
+		numberOfDefaultFilters = [[NSMutableDictionary alloc] init];
+
+		NSError *readError = nil;
+		NSString *filePath = [[NSBundle mainBundle] pathForResource:@"ContentFilters" ofType:@"plist"];
+		if (!filePath) {
+			filePath = [[NSBundle bundleForClass:[self class]] pathForResource:@"ContentFilters" ofType:@"plist"];
+		}
+		NSData *defaultFilterData = nil;
+		if(filePath) {
+			defaultFilterData = [NSData dataWithContentsOfFile:filePath
+			                                           options:NSMappedRead
+			                                             error:&readError];
+		}
+		else {
+			readError = [NSError errorWithDomain:NSCocoaErrorDomain
+			                                code:NSFileNoSuchFileError
+			                            userInfo:@{NSFilePathErrorKey: @"ContentFilters.plist"}];
+		}
+
+		if(defaultFilterData && !readError) {
+			NSDictionary *defaultFilterDict = [NSPropertyListSerialization propertyListWithData:defaultFilterData
+			                                                                            options:NSPropertyListMutableContainersAndLeaves
+			                                                                             format:NULL
+			                                                                              error:&readError];
+
+			if(defaultFilterDict && !readError) {
+				[contentFilters setDictionary:defaultFilterDict];
+			}
+		}
+
+		if (readError) {
+			NSLog(@"Error while reading 'ContentFilters.plist':\n%@", readError);
+			NSBeep();
+		}
+		else {
+			for (NSString *group in [SACellFilterOperator filterDefinitionGroups]) {
+				[numberOfDefaultFilters setObject:@([[contentFilters objectForKey:group] count]) forKey:group];
+			}
+		}
+	}
+	return self;
+}
+
+- (void)awakeFromNib {
+    [super awakeFromNib];
+
+	[self _doChangeToRuleEditorData:^{
+		[self->filterRuleEditor bind:@"rows" toObject:self->_modelContainer withKeyPath:@"model" options:nil];
+	}];
+
+	[rootConjunctionPopUp setToolTip:NSLocalizedString(@"Combine the top-level filter conditions with AND or OR. Hold ⌥ while clicking a row's + button to add a nested AND/OR group.", @"table Content : rule filter editor : AND/OR popup : tooltip")];
+	// Static XIB titles are not localized at load time in this app (see the
+	// Refresh title in SPConnectionController.m for the established
+	// workaround) - apply the catalog strings here so translations show up.
+	[[[rootConjunctionPopUp menu] itemWithTag:1] setTitle:NSLocalizedString(@"AND (all conditions)", @"table Content : rule filter editor : AND/OR popup : combine with AND")];
+	[[[rootConjunctionPopUp menu] itemWithTag:0] setTitle:NSLocalizedString(@"OR (any condition)", @"table Content : rule filter editor : AND/OR popup : combine with OR")];
+	[self _syncRootConjunctionPopUp];
+
+	[[NSNotificationCenter defaultCenter] addObserver:self
+	                                         selector:@selector(_contentFiltersHaveBeenUpdated:)
+	                                             name:SPContentFiltersHaveBeenUpdatedNotification
+	                                           object:nil];
+
+	// Install the "Drop a value here, or click to add a filter" zone as a sibling
+	// of the rule-editor scroll view inside the filter container. Layout
+	// (y origin / width) is finalised by -[SPTableContent
+	// updateFilterRuleEditorSize:animate:], which now reserves
+	// `-dropBoxReservedHeight` points below the rule editor for this view.
+	if (!dropBox) {
+		dropBox = [[SPRuleFilterDropBox alloc] initWithFrame:NSZeroRect];
+		[dropBox setDropHandler:self];
+		[dropBox setAutoresizingMask:(NSViewWidthSizable | NSViewMaxYMargin)];
+	}
+	NSView *container = [[filterRuleEditor enclosingScrollView] superview];
+	if (container && [dropBox superview] != container) {
+		[container addSubview:dropBox];
+	}
+}
+
+- (SPRuleFilterDropBox *)dropBoxView
+{
+	return dropBox;
+}
+
+- (CGFloat)dropBoxReservedHeight
+{
+	// Drop box visual height (28pt) + 5pt padding above + 7pt padding
+	// below, so the dashed border has breathing room against the rule
+	// editor above and the result-grid header below.
+	return 40.0;
+}
+
+- (void)focusFirstInputField
+{
+	for(NSDictionary *rootItem in [_modelContainer model]) {
+		if([self _focusOnFieldInSubtree:rootItem]) return;
+	}
+}
+
+- (BOOL)_focusOnFieldInSubtree:(NSDictionary *)dict
+{
+	//if we are a simple row we might have an input field ourself, otherwise search among our children
+	if([[dict objectForKey:@"rowType"] unsignedIntegerValue] == NSRuleEditorRowTypeSimple) {
+		for(id obj in [dict objectForKey:@"displayValues"]) {
+			if([obj isKindOfClass:[NSTextField class]]) {
+				[[(NSTextField *)obj window] makeFirstResponder:obj];
+				return YES;
+			}
+		}
+	}
+	else {
+		for(NSDictionary *child in [dict objectForKey:@"subrows"]) {
+			if([self _focusOnFieldInSubtree:child]) return YES;
+		}
+	}
+	return NO;
+}
+
+- (void)setColumns:(NSArray *)dataColumns;
+{
+	[self _doChangeToRuleEditorData:^{
+		// we have to access the model in the same way the rule editor does for it to realize the changes
+		[[self->_modelContainer mutableArrayValueForKey:@"model"] removeAllObjects];
+
+		[self->columns removeAllObjects];
+
+		//without a table there is nothing to filter
+		if(dataColumns) {
+			//sort column names if enabled
+			NSArray *columnDefinitions = dataColumns;
+			if ([[NSUserDefaults standardUserDefaults] boolForKey:SPAlphabeticalTableSorting]) {
+				NSSortDescriptor *sortDescriptor = [NSSortDescriptor sortDescriptorWithKey:@"name" ascending:YES];
+				columnDefinitions = [columnDefinitions sortedArrayUsingDescriptors:@[sortDescriptor]];
+			}
+
+			// get the columns
+			for (NSDictionary *colDef in columnDefinitions) {
+				ColumnNode *node = [[ColumnNode alloc] init];
+				[node setName:[colDef objectForKey:@"name"]];
+				[node setTypegrouping:[colDef objectForKey:@"typegrouping"]];
+				[self->columns addObject:node];
+			}
+		}
+
+		// make the rule editor reload the criteria
+		[self->filterRuleEditor reloadCriteria];
+	}];
+
+	// the rows are gone, so the way they were combined is meaningless now;
+	// -restoreSerializedFilters: brings it back for a saved filter
+	[self setRootIsConjunction:YES];
+
+	// disable UI if no criteria exist (enable otherwise)
+	[self setEnabled:YES];
+}
+
+- (NSInteger)ruleEditor:(NSRuleEditor *)editor numberOfChildrenForCriterion:(nullable id)criterion withRowType:(NSRuleEditorRowType)rowType
+{
+	// nil criterion is always the first element in a row
+	if(rowType == NSRuleEditorRowTypeCompound) {
+		if(!criterion) {
+			return 1; //enable checkbox
+		}
+		RuleNodeType type = [(RuleNode *)criterion type];
+		// compound rows are only for "AND"/"OR" groups
+		if(type == RuleNodeTypeEnable) {
+			return 2;
+		}
+		// the AND/OR choice is followed by a static explainer label, so the
+		// popup clearly refers to the group's own rows (not its neighbours)
+		if(type == RuleNodeTypeString && [self _isConjunctionChoiceNode:(StringNode *)criterion]) {
+			return 1;
+		}
+	}
+	else if(rowType == NSRuleEditorRowTypeSimple) {
+		if(!criterion) {
+			return 1; // enable checkbox
+		}
+		RuleNodeType type = [(RuleNode *)criterion type];
+		// the children of the enable checkbox are the columns
+		if(type == RuleNodeTypeEnable) {
+			return [columns count];
+		}
+		// the children of the columns are their operators
+		else if(type == RuleNodeTypeColumn) {
+			ColumnNode *node = (ColumnNode *)criterion;
+			[self _ensureValidOperatorCache:node];
+			return [[node operatorCache] count];
+		}
+		// the first child of an operator is the first argument (if it has one)
+		else if(type == RuleNodeTypeOperator) {
+			OpNode *node = (OpNode *)criterion;
+			NSInteger numOfArgs = [[[node filter] objectForKey:@"NumberOfArguments"] integerValue];
+			return (numOfArgs > 0) ? 1 : 0;
+		}
+		// the child of an argument can only be the conjunction label if more arguments follow
+		else if(type == RuleNodeTypeArgument) {
+			ArgNode *node = (ArgNode *)criterion;
+			NSUInteger numOfArgs = [[[node filter] objectForKey:@"NumberOfArguments"] unsignedIntegerValue];
+			return (numOfArgs > [node argIndex]+1) ? 1 : 0;
+		}
+		// the child of a conjunction is the next argument, if we have one
+		else if(type == RuleNodeTypeConnector) {
+			ConnectorNode *node = (ConnectorNode *)criterion;
+			NSUInteger numOfArgs = [[[node filter] objectForKey:@"NumberOfArguments"] unsignedIntegerValue];
+			return (numOfArgs > [node labelIndex]+1) ? 1 : 0;
+		}
+	}
+	return 0;
+}
+
+- (id)ruleEditor:(NSRuleEditor *)editor child:(NSInteger)index forCriterion:(nullable id)criterion withRowType:(NSRuleEditorRowType)rowType
+{
+	// nil criterion is always the first element in a row
+	if(rowType == NSRuleEditorRowTypeCompound) {
+		if(!criterion) {
+			EnableNode *node = [[EnableNode alloc] init];
+
+			[node setAllowsMixedState:YES];
+			return node;
+		}
+		RuleNodeType type = [(RuleNode *) criterion type];
+		// compound rows are only for "AND"/"OR" groups
+		if(type == RuleNodeTypeEnable) {
+			StringNode *node = [[StringNode alloc] init];
+			switch(index) {
+				case 0: [node setValue:@"AND"]; break;
+				case 1: [node setValue:@"OR"]; break;
+			}
+			return node;
+		}
+		if(type == RuleNodeTypeString && [self _isConjunctionChoiceNode:(StringNode *)criterion]) {
+			return [SPRuleFilterController _conjunctionExplainerNode];
+		}
+	}
+	else if(rowType == NSRuleEditorRowTypeSimple) {
+		// this is the enable checkbox
+		if(!criterion) {
+			return [[EnableNode alloc] init];
+		}
+		RuleNodeType type = [(RuleNode *) criterion type];
+		// this is the column field
+		if (type == RuleNodeTypeEnable) {
+			return [columns objectAtIndex:index];
+		}
+		// the children of the columns are their operators
+		if (type == RuleNodeTypeColumn) {
+			return [[criterion operatorCache] objectAtIndex:index];
+		}
+		// the first child of an operator is the first argument
+		else if(type == RuleNodeTypeOperator) {
+			NSDictionary *filter = [(OpNode *)criterion filter];
+			if([[filter objectForKey:@"NumberOfArguments"] integerValue]) {
+				ArgNode *arg = [[ArgNode alloc] init];
+				[arg setFilter:filter];
+				[arg setArgIndex:0];
+				return arg;
+			}
+		}
+		// the child of an argument can only be the conjunction label if more arguments follow
+		else if(type == RuleNodeTypeArgument) {
+			NSDictionary *filter = [(ArgNode *)criterion filter];
+			NSUInteger argIndex = [(ArgNode *)criterion argIndex];
+			if([[filter objectForKey:@"NumberOfArguments"] unsignedIntegerValue] > argIndex +1) {
+				ConnectorNode *node = [[ConnectorNode alloc] init];
+				[node setFilter:filter];
+				[node setLabelIndex:argIndex]; // label 0 follows argument 0
+				return node;
+			}
+		}
+		// the child of a conjunction is the next argument, if we have one
+		else if(type == RuleNodeTypeConnector) {
+			ConnectorNode *node = (ConnectorNode *)criterion;
+			NSUInteger numOfArgs = [[[node filter] objectForKey:@"NumberOfArguments"] unsignedIntegerValue];
+			if(numOfArgs > [node labelIndex]+1) {
+				ArgNode *arg = [[ArgNode alloc] init];
+				[arg setFilter:[node filter]];
+				[arg setArgIndex:([node labelIndex]+1)];
+				return arg;
+			}
+		}
+	}
+	return nil;
+}
+
+- (id)ruleEditor:(NSRuleEditor *)editor displayValueForCriterion:(id)criterion inRow:(NSInteger)row
+{
+	switch([(RuleNode *)criterion type]) {
+		case RuleNodeTypeString: return [(StringNode *)criterion value];
+		case RuleNodeTypeEnable: {
+			EnableNode *node = (EnableNode *)criterion;
+			NSButton *check = [[NSButton alloc] init];
+			[check setTitle:NSLocalizedString(@"Enable Filter", @"table Content : rule filter editor : row : enable filter expression checkbox")];
+			[check setToolTip:NSLocalizedString(@"When unchecked this filter expression will not be applied", @"table Content : rule filter editor : row : enable filter expression checkbox : tooltip")];
+			// see +checkboxWithTitle:target:action: in 10.12+
+			[check setButtonType:NSButtonTypeSwitch];
+			[check setBezelStyle:NSBezelStyleRegularSquare];
+			[check setBordered:NO];
+			[check setImagePosition:NSImageOnly];
+			// -sizeToFit on a freshly created NSButton is shockingly expensive
+			// on macOS 26 (the cell measures through a full SwiftUI view
+			// graph, ~hundreds of ms) and made every "+" click lag. The
+			// checkbox is image-only and identical for every row, so measure
+			// once and reuse the size. (Main thread only, like all of this.)
+			static NSSize checkboxSize = {0, 0};
+			if (NSEqualSizes(checkboxSize, NSZeroSize)) {
+				[check sizeToFit];
+				checkboxSize = [check frame].size;
+			}
+			else {
+				[check setFrameSize:checkboxSize];
+			}
+			[check setAllowsMixedState:[node allowsMixedState]];
+			[check setState:([node initialState] ? NSControlStateValueOn : NSControlStateValueOff)];
+			[check setTarget:self];
+			[check setAction:@selector(_checkboxClicked:)];
+			// A restored starter row waits for its first edit again. The mark stays on the node
+			// so that tracking resumes whenever the checkbox is built anew - the editor rebuilds
+			// it on a reload - and goes once the row stops waiting, so a later rebuild cannot
+			// uncheck a row the user has enabled since.
+			if ([node pendingStarter]) {
+				__weak EnableNode *markedNode = node;
+				[self.pendingStarter beginWithCheckbox:check clearingRestoredMark:^{
+					[markedNode setPendingStarter:NO];
+				}];
+			}
+			return check;
+		}
+		case RuleNodeTypeColumn: {
+			/*
+			 * We could also return a string here, but we want a hook into the selection process so we can preserve
+			 * the other values in a row when a user changes the column (also see the comment below)
+			 */
+			NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:[(ColumnNode *)criterion name] action:NULL keyEquivalent:@""];
+			[item setRepresentedObject:@{
+				@"node": criterion,
+			}];
+			[item setTarget:self];
+			[item setAction:@selector(_menuItemInRuleEditorClicked:)];
+			return item;
+		}
+		case RuleNodeTypeOperator: {
+			OpNode *node = (OpNode *)criterion;
+			NSMenuItem *item;
+			if ([[[node settings] objectForKey:@"isSeparator"] boolValue]) {
+				item = [NSMenuItem separatorItem];
+			}
+			else {
+				/* NOTE:
+				 * Apple's doc on NSRuleEditor says that returning NSMenuItems is supported.
+				 * However there seems to be a major discrepancy between what Apple considers "supported" and what any
+				 * sane person would consider supported.
+				 *
+				 * Basically one would expect NSMenuItems to be handled in the same way a number of NSString children of a
+				 * row's element will be handled, but that was not Apples intention. By supported they actually mean
+				 * "Your app won't crash immediately if you return an NSMenuItem here" - but that's about it.
+				 * Even selecting such an NSMenuItem will already cause an exception on 10.6 and be treated as a NOOP on
+				 * later OSes.
+				 * So if we return NSMenuItems we have to implement the full logic of the NSRuleEditor for updating and
+				 * displaying the row ourselves, starting with handling the target/action of the NSMenuItems!
+				 */
+				item = [[NSMenuItem alloc] initWithTitle:[[node settings] objectForKey:@"title"] action:NULL keyEquivalent:@""];
+				[item setToolTip:[[node settings] objectForKey:@"tooltip"]];
+				[item setTag:[[[node settings] objectForKey:@"tag"] integerValue]];
+				[item setRepresentedObject:@{
+					@"node": node,
+					// this one is needed by the "Edit filters…" item for context
+					@"filterType": SPBoxNil([[node settings] objectForKey:@"filterType"]),
+				}];
+				[item setTarget:self];
+				[item setAction:@selector(_menuItemInRuleEditorClicked:)];
+			}
+			return item;
+		}
+		case RuleNodeTypeArgument: {
+			//an argument is a textfield
+			ArgNode *node = (ArgNode *)criterion;
+			// Subclass accepts a cell-value drop from the result grid so a
+			// dragged cell populates this rule's argument with its value.
+			NSTextField *textField = [[SPFilterRuleTextField alloc] init];
+			[[textField cell] setSendsActionOnEndEditing:YES];
+			[[textField cell] setUsesSingleLineMode:YES];
+			[textField setFont:[NSFont systemFontOfSize:[NSFont smallSystemFontSize]]];
+			[[textField cell] setWraps:NO];
+			[[textField cell] setScrollable:YES];
+			// Same -sizeToFit trap as the checkbox above: measure the (always
+			// identical) single-line height once, then reuse it. The width is
+			// overridden below anyway.
+			static CGFloat argumentFieldHeight = 0;
+			if (argumentFieldHeight <= 0) {
+				[textField sizeToFit];
+				argumentFieldHeight = [textField frame].size.height;
+			}
+			else {
+				[textField setFrameSize:NSMakeSize([textField frame].size.width, argumentFieldHeight)];
+			}
+			[textField setTarget:self];
+			[textField setAction:@selector(_textFieldAction:)];
+			[textField setDelegate:self]; // see -control:textView:doCommandBySelector:
+			[textField setToolTip:NSLocalizedString(@"Enter the value to apply the filter condition with.\nPress ↩ to apply the filter or ⇧⌫ to remove this rule.", @"table content : rule filter editor : text input field : tooltip")];
+			if([node initialValue]) [textField setStringValue:[node initialValue]];
+			NSRect frame = [textField frame];
+			//adjust width, to make the field wider
+			frame.size.width = 500; //TODO determine a good width (possibly from the field type size) - how to access the rule editors bounds?
+			[textField setFrame:frame];
+			return textField;
+		}
+		case RuleNodeTypeConnector: {
+			// a simple string for once
+			ConnectorNode *node = (ConnectorNode *)criterion;
+			NSArray* labels = [[node filter] objectForKey:@"ConjunctionLabels"];
+			return (labels && [labels count] == 1)? [labels objectAtIndex:0] : @"";
+		}
+	}
+	
+	return nil;
+}
+
+- (BOOL)control:(NSControl *)control textView:(NSTextView *)textView doCommandBySelector:(SEL)commandSelector
+{
+	// if the user presses shift+backspace or shift+delete we'll try to remove the whole rule
+	NSEvent *event = [NSApp currentEvent];
+	if(
+		( commandSelector == @selector(deleteBackward:) || commandSelector == @selector(deleteForward:) ) &&
+		[event type] == NSEventTypeKeyDown &&
+		([event modifierFlags] & NSEventModifierFlagDeviceIndependentFlagsMask) == NSEventModifierFlagShift
+	) {
+		NSInteger row = [filterRuleEditor rowForDisplayValue:control];
+
+		if(row != NSNotFound) {
+			// we'll do the actual processing async, because we are currently in the stack of the object which will be dropped by this action.
+			// so we want the delegate method to have finished first, just to be safe
+			SPMainLoopAsync(^{
+				// if we are about to remove the only row in existance, treat it as a reset instead
+				if([[self->_modelContainer model] count] == 1) {
+					[self resetFilter];
+				}
+				else {
+					[self _doChangeToRuleEditorData:^{
+						[self->filterRuleEditor removeRowAtIndex:row];
+					}];
+					[self filterTable:nil]; // trigger a new filtering for convenience. I don't know if that is always the preferred approach...
+				}
+			});
+			return YES;
+		}
+	}
+
+	return NO;
+}
+
+- (IBAction)_checkboxClicked:(id)sender
+{
+	// A click on a waiting row's checkbox is the user's own choice; later edits must not undo it.
+	[self.pendingStarter forgetCheckbox:sender];
+
+	NSInteger row = [filterRuleEditor rowForDisplayValue:sender];
+	NSControlStateValue newState = [(NSButton *)sender state];
+
+	// to have -setState: accept mixed state we have to -setAllowsMixedState:YES in which case the user, too, can cycle all three states m(
+	if(newState == NSControlStateValueMixed) {
+		[sender setNextState];
+		newState = [(NSButton *)sender state];
+	}
+
+	if(row >= 0 && (newState == NSControlStateValueOn || newState == NSControlStateValueOff)) {
+		// if we are a compound row, go downwards to update our children
+		if([filterRuleEditor rowTypeForRow:row] == NSRuleEditorRowTypeCompound) {
+			[self _updateCheckedStateDownwardsFromCompoundRow:row to:newState];
+		}
+		// then go upwards to update the checkbox state of our parent
+		[self _updateCheckedStateUpwardsFromCompoundRow:[filterRuleEditor parentRowForRow:row]];
+	}
+
+    [self _updateButtonStates];
+    [self _updateFilterPreview];
+}
+
+/**
+ * This method will recursively update the checkbox state of all children rows of the given row index with `newState`.
+ * `row` itself will not be changed!
+ *
+ * @param row
+ *   The row index of a compound row for which to update the children states (can be -1)
+ * @param newState
+ *   The new state to set for all children rows
+ */
+- (void)_updateCheckedStateDownwardsFromCompoundRow:(NSInteger)row to:(NSControlStateValue)newState
+{
+	NSIndexSet *subrows = [filterRuleEditor subrowIndexesForRow:row];
+	[subrows enumerateIndexesUsingBlock:^(NSUInteger idx, BOOL *stop) {
+		// Switching a group on decides for its rows as well, so one of them still waiting for its
+		// first edit stops waiting here. Left tracked, it would be unchecked again the next time
+		// its checkbox is built, and the saved filter would bring the group back with that row
+		// switched off. Switching a group off leaves a waiting row waiting: it is unchecked
+		// either way, and its own first edit is still to come.
+		if (newState == NSControlStateValueOn) {
+			[self.pendingStarter forgetRow:idx inEditor:filterRuleEditor];
+		}
+		[self _updateCheckedStateForRow:idx to:newState];
+		// go deeper for compound rows
+		if([filterRuleEditor rowTypeForRow:idx] == NSRuleEditorRowTypeCompound) {
+			[self _updateCheckedStateDownwardsFromCompoundRow:idx to:newState];
+		}
+	}];
+}
+
+/**
+ * This method will update the checkbox state of the row specified by the given index.
+ * No other rows will be affected by this call.
+ *
+ * @param row
+ *   The row index to update (must be >= 0)
+ * @param newState
+ *   The new checkbox state to set
+ */
+- (void)_updateCheckedStateForRow:(NSInteger)row to:(NSControlStateValue)newState
+{
+	NSArray *displayValues = [filterRuleEditor displayValuesForRow:row];
+	RuleNode *firstCriterion = [[filterRuleEditor criteriaForRow:row] objectAtIndex:0];
+	if([firstCriterion type] == RuleNodeTypeEnable) {
+		NSButton *button = [displayValues objectAtIndex:0];
+		[button setState:newState];
+	}
+}
+
+/**
+ * This method will recursively update the checkbox state of the given row and all of its parent rows
+ * to match the aggregate state of all simple rows in the affected subtree.
+ *
+ * The rule editor row tree will be walked upwards using `-parentRowForRow:` until a top-level row is encountered
+ * (parent=-1).
+ *
+ * NOTE: This method assumes that all compound child rows of `row` already have a consistent checkbox state!
+ *
+ * @param row
+ *   The row index of a compound row (can be `-1`)
+ */
+- (void)_updateCheckedStateUpwardsFromCompoundRow:(NSInteger)row
+{
+	// stop condition for recursion
+	if(row < 0) return;
+
+	__block NSControlStateValue newState = NSControlStateValueOn;
+	__block NSUInteger countOff = 0;
+	NSIndexSet *subrows = [filterRuleEditor subrowIndexesForRow:row];
+	[subrows enumerateIndexesUsingBlock:^(NSUInteger idx, BOOL *stop) {
+		NSControlStateValue subState = [self _checkboxStateForRow:idx];
+		// mixed is easy: if at least one child is mixed, the parent is mixed, too
+		if(subState == NSControlStateValueMixed) {
+			newState = NSControlStateValueMixed;
+			*stop = YES;
+			return;
+		}
+		else if(subState == NSControlStateValueOff) {
+			countOff++;
+		}
+	}];
+	if(countOff) {
+		// off only happens if all children are off
+		newState = (countOff == [subrows count]) ? NSControlStateValueOff : NSControlStateValueMixed;
+	}
+
+	//update ourselves
+	[self _updateCheckedStateForRow:row to:newState];
+
+	// notify our own parent of the change
+	[self _updateCheckedStateUpwardsFromCompoundRow:[filterRuleEditor parentRowForRow:row]];
+}
+
+/**
+ * This method recursively walks the rule editor tree starting with the children of `row`,
+ * updates the state of any compound row along the way (except `row` itself!) to be consistent with its child rows and
+ * returns the compound checkbox state of all children.
+ *
+ * @param row
+ *   The row index of a compound row (can be `-1` to start walking with all top-level rows)
+ * @return
+ *   The resulting state for the given row according to all children (recursive).
+ *   This will be:
+ *   - `NSControlStateValueOn` if the row either has no children or all children are also checked
+ *   - `NSControlStateValueMixed` if at least one child row is also in mixed state or some (but not all) of the child rows are unchecked
+ *   - `NSControlStateValueOff` if there are child rows and all of them are unchecked
+ */
+- (NSControlStateValue)_recalculateCheckboxStatesFromRow:(NSInteger)row
+{
+	NSIndexSet *subrows = [filterRuleEditor subrowIndexesForRow:row];
+
+	__block NSControlStateValue newState = NSControlStateValueOn;
+	__block NSUInteger countOff = 0;
+	[subrows enumerateIndexesUsingBlock:^(NSUInteger idx, BOOL *stop) {
+		NSControlStateValue subState;
+		if([filterRuleEditor rowTypeForRow:idx] == NSRuleEditorRowTypeCompound) {
+			subState = [self _recalculateCheckboxStatesFromRow:idx];
+			// if the current row is a compound row, update its state from its children
+			[self _updateCheckedStateForRow:idx to:subState];
+		}
+		else {
+			subState = [self _checkboxStateForRow:idx];
+		}
+		if(subState == NSControlStateValueMixed) {
+			newState = NSControlStateValueMixed;
+		}
+		else if(subState == NSControlStateValueOff) {
+			countOff++;
+		}
+	}];
+	if(countOff) {
+		// off only happens if all children are off
+		newState = (countOff == [subrows count]) ? NSControlStateValueOff : NSControlStateValueMixed;
+	}
+
+	return newState;
+}
+
+/**
+ * Get the current checkbox state for a row
+ *
+ * NOTE: This method can be used on simple and compound rows, but it will not check that the compound state is actually
+ * consistent with its children before returning it.
+ *
+ * @param row
+ *   The row index to return the checkbox state of (must be >= 0)
+ * @return
+ *   The checkbox state.
+ *   Defaults to `NSControlStateValueOn` if no checkbox is found in the row.
+ */
+- (NSControlStateValue)_checkboxStateForRow:(NSInteger)row
+{
+	NSArray *displayValues = [filterRuleEditor displayValuesForRow:row];
+	RuleNode *firstCriterion = [[filterRuleEditor criteriaForRow:row] objectAtIndex:0];
+	if([firstCriterion type] == RuleNodeTypeEnable) {
+		NSButton *subButton = [displayValues objectAtIndex:0];
+		return [subButton state];
+	}
+
+	SPLog(@"row=%ld: row does not have enable node as first child!? (type=%ld)", row, (NSInteger)[firstCriterion type]);
+	return NSControlStateValueOn;
+}
+
+- (IBAction)_textFieldAction:(id)sender
+{
+	// if the action was caused by pressing return or enter, trigger filtering
+	NSEvent *event = [NSApp currentEvent];
+	if(event && [event type] == NSEventTypeKeyDown && ([event keyCode] == 36 || [event keyCode] == 76)) {
+		[self filterTable:nil];
+	}
+}
+
+/**
+ * Live-updates the WHERE preview while the user types in an argument field
+ * (the fields' delegate is this controller, see the ArgNode display value).
+ */
+- (void)controlTextDidChange:(NSNotification *)notification
+{
+	// Typing into the unchecked starter row means filtering by it.
+	[self _enablePendingStarterInRow:[filterRuleEditor rowForDisplayValue:[notification object]]];
+	[self _updateFilterPreview];
+}
+
+/**
+ * Shows the WHERE clause the current rules would produce in the drop zone,
+ * or restores the drop prompt when there is nothing (or nothing valid) to
+ * preview. Called after every change that can alter the clause: row changes,
+ * checkbox toggles, popup selections, typing, and restores.
+ */
+- (void)_updateFilterPreview
+{
+	SPMainQSync(^{
+		if (!self->dropBox) return;
+		NSString *clause = nil;
+		if (![self isEmpty]) {
+			NSError *err = nil;
+			clause = [self sqlWhereExpressionWithBinary:NO error:&err];
+			if (err) clause = nil;
+		}
+		[self->dropBox setPreviewClause:clause];
+	});
+}
+
+- (IBAction)_menuItemInRuleEditorClicked:(id)sender
+{
+	if(!sender) return; // NSRuleEditor will throw on nil
+
+	NSInteger row = [filterRuleEditor rowForDisplayValue:sender];
+
+	if(row == NSNotFound) {
+		// Not one of our menu items: NSRuleEditor sends its own action (with
+		// itself as sender) for criteria it handles natively - notably the
+		// AND/OR string popup of a compound row. The tree may have changed
+		// without a row-count change, so refresh the WHERE preview here.
+		[self _updateFilterPreview];
+		return;
+	}
+
+	RuleNode *criterion = [[(NSMenuItem *)sender representedObject] objectForKey:@"node"];
+
+	if([criterion type] == RuleNodeTypeOperator) {
+		OpNode *node = (OpNode *)criterion;
+		// if the row has an explicit handler, pass on the action and do nothing
+		id _target = [[node settings] objectForKey:@"target"];
+		SEL _action = (SEL)[(NSValue *)[[node settings] objectForKey:@"action"] pointerValue];
+		if(_target && _action) {
+			[self _invokeTarget:_target action:_action withObject:sender];
+			return;
+		}
+	}
+
+	// Picking a column or operator in the unchecked starter row means filtering by it; a command
+	// such as "Edit Filters…" above does not change the row and does not count.
+	[self _enablePendingStarterInRow:row];
+
+	/* now comes the painful part, where we'd have to find out where exactly in the row this
+	 * displayValue should appear.
+	 *
+	 * Annoyingly we can't tell the rule editor to just replace a single element. We actually
+	 * have to recalculate the whole row starting with the element we replaced - a task the
+	 * rule editor would normally do for us when using NSStrings!
+	 */
+	NSMutableArray *criteria = [[filterRuleEditor criteriaForRow:row] mutableCopy];
+	NSMutableArray *displayValues = [[filterRuleEditor displayValuesForRow:row] mutableCopy];
+
+	// find the position of the previous node
+	NSUInteger nodeIndex = NSNotFound;
+	NSUInteger i = 0;
+	for(RuleNode *obj in criteria) {
+		if([obj isViableReplacementFor:criterion]) {
+			nodeIndex = i;
+			break;
+		}
+		i++;
+	}
+
+	if(nodeIndex < [criteria count]) {
+		//remove previous node and everything that follows and append new node
+		NSRange stripRange = NSMakeRange(nodeIndex, ([criteria count] - nodeIndex));
+
+		//preserve the old criteria and displayValues, so we can restore the values of input fields if appropriate
+		NSArray *oldCriteria = [criteria copy];
+		NSArray *oldDisplayValues = [displayValues copy];
+
+		[criteria removeObjectsInRange:stripRange];
+		[criteria addObject:criterion];
+
+		//remove the display value for the old op node and everything that followed
+		[displayValues removeObjectsInRange:stripRange];
+
+		//now we'll fill in everything again
+		[self _pretendPlayRuleEditorForCriteria:criteria
+		                          displayValues:displayValues
+		                                  inRow:row
+		            tryingToPreserveOldCriteria:[oldCriteria subarrayWithRange:stripRange]
+		                          displayValues:[oldDisplayValues subarrayWithRange:stripRange]];
+
+		//and update the row to its new state
+		[self _doChangeToRuleEditorData:^{
+			[self->filterRuleEditor setCriteria:criteria andDisplayValues:displayValues forRowAtIndex:row];
+		}];
+
+		[self _updateFilterPreview];
+
+		// make the next possible object after the opnode the new next responder (since the previous one is gone now)
+		for (NSUInteger j = nodeIndex + 1; j < [displayValues count]; ++j) {
+			id obj = [displayValues objectAtIndex:j];
+			if([obj respondsToSelector:@selector(acceptsFirstResponder)] && [obj acceptsFirstResponder]) {
+				[[filterRuleEditor window] makeFirstResponder:obj];
+				break;
+			}
+		}
+	}
+}
+
+/**
+ * This method recursively fills up the passed-in criteria and displayValues arrays with objects in the way the
+ * NSRuleEditor would, so they can be used with the -setCriteria:andDisplayValues:forRowAtIndex: call.
+ * 
+ * Assumptions made:
+ * - row is a valid row within the bounds of the rule editor
+ * - criteria contains at least one object
+ * - displayValues contains exactly one less object than criteria
+ * - the first object in oldCriteria is what the last object in criteria replaced
+ * - all objects in oldDisplayValues correspond to the objects at the same index in oldCriteria
+ */
+- (void)_pretendPlayRuleEditorForCriteria:(NSMutableArray *)criteria
+                            displayValues:(NSMutableArray *)displayValues
+                                    inRow:(NSInteger)row
+              tryingToPreserveOldCriteria:(NSArray *)oldCriteria
+                            displayValues:(NSArray *)oldDisplayValues
+{
+	RuleNode *curCriterion = [criteria lastObject];
+
+	//first fill in the display value for the current criterion
+	id display = [self ruleEditor:filterRuleEditor displayValueForCriterion:curCriterion inRow:row];
+	if(!display) return; // abort if unset
+
+	// try to restore the value from the previous displayValue for input fields
+	RuleNode *oldCriterion = [oldCriteria firstObject];
+	if([curCriterion type] == RuleNodeTypeArgument && oldCriterion && [curCriterion type] == [oldCriterion type]) {
+		NSTextField *oldField = [oldDisplayValues firstObject];
+		if(oldField) [display setStringValue:[oldField stringValue]];
+	}
+	[displayValues addObject:display];
+
+	// now let's check if we have to go deeper
+	NSRuleEditorRowType rowType = [filterRuleEditor rowTypeForRow:row];
+	if(![self ruleEditor:filterRuleEditor numberOfChildrenForCriterion:curCriterion withRowType:rowType]) return;
+
+	// we only care for the first child, though
+	id nextCriterion = [self ruleEditor:filterRuleEditor child:0 forCriterion:curCriterion withRowType:rowType];
+	if(nextCriterion) {
+		NSArray *nextOldCriteria      = ([oldCriteria count] > 1 ? [oldCriteria subarrayWithRange:NSMakeRange(1, [oldCriteria count] - 1)] : [NSArray array]);
+		NSArray *nextOldDisplayValues = ([oldDisplayValues count] > 1 ? [oldDisplayValues subarrayWithRange:NSMakeRange(1, [oldDisplayValues count] - 1)] : [NSArray array]);
+
+		// if the user changed the column, try to retain the previously selected operation
+		RuleNode *nextOldCriterion = [nextOldCriteria firstObject];
+		if(nextOldCriterion && [nextOldCriterion type] == RuleNodeTypeOperator && [curCriterion type] == RuleNodeTypeColumn) {
+			NSString *opName = [(OpNode *)nextOldCriterion name];
+			OpNode *op = [self _operatorNamed:opName forColumn:(ColumnNode *)curCriterion];
+			if(op) nextCriterion = op;
+		}
+		[criteria addObject:nextCriterion];
+
+		[self _pretendPlayRuleEditorForCriteria:criteria
+		                          displayValues:displayValues
+		                                  inRow:row
+		            tryingToPreserveOldCriteria:nextOldCriteria
+		                          displayValues:nextOldDisplayValues];
+	}
+}
+
+- (IBAction)filterTable:(id)sender
+{
+	[self _invokeFilterTargetActionWithObject:self];
+}
+
+/**
+ * Invokes a runtime-registered target/action pair. The registered actions are
+ * void IBAction-style methods, so there is no returned object for ARC to leak.
+ */
+- (void)_invokeTarget:(id)aTarget action:(SEL)anAction withObject:(id)object
+{
+	if(!aTarget || !anAction) return;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+	[aTarget performSelector:anAction withObject:object];
+#pragma clang diagnostic pop
+}
+
+/**
+ * Invokes the controller's filter target/action (see setTarget:/setAction:).
+ */
+- (void)_invokeFilterTargetActionWithObject:(id)object
+{
+	[self _invokeTarget:target action:action withObject:object];
+}
+
+- (void)resetFilter {
+    SPTableContent *con = tableDocumentInstance.tableContentInstance;
+
+    con->toggleRuleFilterButton.state = !con->toggleRuleFilterButton.state;
+
+    [con toggleRuleEditorVisible:nil];
+
+	[self _doChangeToRuleEditorData:^{
+		[[self->_modelContainer mutableArrayValueForKey:@"model"] removeAllObjects];
+	}];
+	[self setRootIsConjunction:YES];
+	[self _invokeFilterTargetActionWithObject:nil];
+}
+
+- (IBAction)addFilter:(id)sender
+{
+	[self addFilterExpression];
+}
+
+- (void)_resize
+{
+    SPMainQSync(^{
+        CGFloat wantsHeight = [self->filterRuleEditor rowHeight] * MAX([self->filterRuleEditor numberOfRows], 1);
+        // No-op resizes would still trigger a full container layout pass in
+        // SPTableContent - skip them, several notifications per gesture are normal.
+        if (wantsHeight == self->preferredHeight) return;
+        [self setPreferredHeight:wantsHeight];
+        [[NSNotificationCenter defaultCenter] postNotificationName:SPRuleFilterHeightChangedNotification object:self];
+    });
+}
+
+
+/**
+ * NSRuleEditorRowsDidChangeNotification handler: keeps the container height, the button states and the
+ * checkbox states in sync with the rows, and resets the filter when the user removed the last row.
+ */
+- (void)ruleEditorRowsDidChange:(NSNotification *)notification 
+{
+	// The rule editor is very liberal in the use of this notification: one click on "+"/"-" can post it
+	// several times, and not every post means the number of rows actually changed. SARuleFilterResizePolicy
+	// decides what to do; this method only carries it out (see the policy for the reasoning).
+	NSInteger newRowCount = [filterRuleEditor numberOfRows];
+	// The notification arrives on whatever thread mutated the rows (table
+	// loading clears/restores the model from its task thread). Cancelling and
+	// scheduling the deferred resize must happen on the main run loop, or the
+	// perform never fires and stale cancels hit the wrong thread.
+	switch([SARuleFilterResizePolicy actionForRowCount:newRowCount previousRowCount:previousRowCount]) {
+		case SARuleFilterResizeActionNone:
+			break;
+		case SARuleFilterResizeActionImmediate: {
+			SPMainQSync(^{
+				[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(_resize) object:nil];
+				[self _resize];
+			});
+			break;
+		}
+		case SARuleFilterResizeActionDeferred: {
+			SPMainQSync(^{
+				[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(_resize) object:nil];
+				[self performSelector:@selector(_resize) withObject:nil afterDelay:[SARuleFilterResizePolicy deferredResizeDelay]];
+			});
+			break;
+		}
+	}
+	[self _updateButtonStates];
+
+	// if a row has been added, we need to update the checkboxes to match again
+	[self _recalculateCheckboxStatesFromRow:-1];
+	[self _updateFilterPreview];
+
+	// if the user removed the last row in the editor by pressing "-" (and only then) we immediately want to trigger a filter reset.
+	// There is no direct way to know whether the action was triggered by the user, so we can only try to exclude all other causes of changes
+	if(!isDoingChangeCausedOutsideOfRuleEditor && previousRowCount > 0 && newRowCount == 0) {
+		[self _invokeFilterTargetActionWithObject:nil];
+	}
+	previousRowCount = newRowCount;
+}
+
+- (void)_updateButtonStates
+{
+	BOOL empty = [self isEmpty];
+	[addFilterButton setHidden:!empty];
+	[filterButton setHidden:empty];
+
+	[filterButton setEnabled:(enabled && !empty)];
+	[filterRuleEditor setEnabled:enabled];
+	[addFilterButton setEnabled:(enabled && empty)];
+	[rootConjunctionPopUp setHidden:empty];
+	[rootConjunctionPopUp setEnabled:(enabled && !empty)];
+}
+
+/**
+ * How the top-level rows are combined: YES for AND, NO for OR (see the header).
+ */
+- (BOOL)rootIsConjunction
+{
+	return rootIsConjunction;
+}
+
+/**
+ * Sets the root conjunction and mirrors it into the AND/OR popup.
+ */
+- (void)setRootIsConjunction:(BOOL)isConjunction
+{
+	rootIsConjunction = isConjunction;
+	[self _syncRootConjunctionPopUp];
+}
+
+/**
+ * Trampoline into SARuleFilterConjunctionRowPresentation: YES when the node is
+ * the AND/OR choice of a compound row (as opposed to the explainer label).
+ */
+- (BOOL)_isConjunctionChoiceNode:(StringNode *)node
+{
+	return [SARuleFilterConjunctionRowPresentation isConjunctionChoice:[node value]];
+}
+
+/**
+ * Trampoline into SARuleFilterConjunctionRowPresentation: the static label
+ * shown after a group row's AND/OR popup, wrapped in the rule-editor node type.
+ */
++ (StringNode *)_conjunctionExplainerNode
+{
+	StringNode *node = [[StringNode alloc] init];
+	[node setValue:[SARuleFilterConjunctionRowPresentation explainerText]];
+	return node;
+}
+
+/**
+ * Selects the popup item matching `rootIsConjunction` (no-op without a popup, e.g. in unit tests).
+ */
+- (void)_syncRootConjunctionPopUp
+{
+	// AND is tag 1, OR is tag 0 in the XIB
+	[rootConjunctionPopUp selectItemWithTag:(rootIsConjunction ? 1 : 0)];
+}
+
+/**
+ * Action of the AND/OR popup: stores the user's choice for the next serialization.
+ */
+- (IBAction)_rootConjunctionPopUpChanged:(id)sender
+{
+	// like the per-row enable checkbox this does not run the filter; the
+	// user confirms via Apply Filters (or Return in any argument field)
+	rootIsConjunction = ([rootConjunctionPopUp selectedTag] == 1);
+	[self _updateFilterPreview];
+}
+
+- (void)dealloc
+{
+	[self _doChangeToRuleEditorData:^{
+		[self->filterRuleEditor unbind:@"rows"];
+	}];
+	[[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+/**
+ * Sets the compare types for the filter and the appropriate formatter for the textField
+ */
+- (NSArray *)_compareTypesForColumn:(ColumnNode *)colNode
+{
+	if(contentFilters == nil
+		|| ![contentFilters objectForKey:@"number"]
+		|| ![contentFilters objectForKey:@"string"]
+		|| ![contentFilters objectForKey:@"date"]) {
+		NSLog(@"Error while setting filter types.");
+		NSBeep();
+		return @[];
+	}
+
+	NSString *fieldTypeGrouping;
+	if([colNode typegrouping]) {
+		fieldTypeGrouping = [NSString stringWithString:[colNode typegrouping]];
+	}
+	else {
+		return @[];
+	}
+
+	NSMutableArray *compareItems = [NSMutableArray array];
+	
+	// compareType is the saved filterType and the user-defined filter key;
+	// definitionGroup holds the built-in definitions (differs only for BIT).
+	NSString *compareType = [SACellFilterOperator ruleFilterGroupForTypeGrouping:fieldTypeGrouping];
+	NSString *definitionGroup = [SACellFilterOperator filterDefinitionGroupForTypeGrouping:fieldTypeGrouping];
+	if (![compareType length]) {
+		NSBeep();
+		NSLog(@"ERROR: unknown type for comparision: in %@", fieldTypeGrouping);
+	}
+
+	// Add IS NULL and IS NOT NULL as they should always be available
+	// [compareField addItemWithTitle:@"IS NULL"];
+	// [compareField addItemWithTitle:@"IS NOT NULL"];
+
+	// Remove user-defined filters first
+	if([numberOfDefaultFilters objectForKey:definitionGroup]) {
+		NSUInteger cycles = [[contentFilters objectForKey:definitionGroup] count] - [[numberOfDefaultFilters objectForKey:definitionGroup] integerValue];
+		while(cycles > 0) {
+			[[contentFilters objectForKey:definitionGroup] removeLastObject];
+			cycles--;
+		}
+	}
+	
+	NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
+
+	// Load global user-defined content filters
+	if([prefs objectForKey:SPContentFilters]
+		&& [contentFilters objectForKey:definitionGroup]
+		&& [[prefs objectForKey:SPContentFilters] objectForKey:compareType])
+	{
+		[[contentFilters objectForKey:definitionGroup] addObjectsFromArray:[[prefs objectForKey:SPContentFilters] objectForKey:compareType]];
+	}
+
+	// Load doc-based user-defined content filters
+	if([[SPQueryController sharedQueryController] contentFilterForFileURL:[tableDocumentInstance fileURL]]) {
+		id filters = [[SPQueryController sharedQueryController] contentFilterForFileURL:[tableDocumentInstance fileURL]];
+		if([filters objectForKey:compareType])
+			[[contentFilters objectForKey:definitionGroup] addObjectsFromArray:[filters objectForKey:compareType]];
+	}
+
+	NSUInteger i = 0;
+	if([contentFilters objectForKey:definitionGroup]) {
+		for (id filter in [contentFilters objectForKey:definitionGroup]) {
+			// Create the tooltip
+			NSString *tooltip;
+			if ([filter objectForKey:@"Tooltip"])
+				tooltip = [filter objectForKey:@"Tooltip"];
+			else {
+				NSMutableString *tip = [[NSMutableString alloc] init];
+				if ([filter objectForKey:@"Clause"] && [(NSString *) [filter objectForKey:@"Clause"] length]) {
+					[tip setString:[[filter objectForKey:@"Clause"] stringByReplacingOccurrencesOfRegex:@"(?<!\\\\)(\\$\\{.*?\\})" withString:@"[arg]"]];
+					if ([tip isMatchedByRegex:@"(?<!\\\\)\\$BINARY"]) {
+						[tip replaceOccurrencesOfRegex:@"(?<!\\\\)\\$BINARY" withString:@""];
+						[tip appendString:NSLocalizedString(@"\n\nPress ⇧ for binary search (case-sensitive).", @"\n\npress shift for binary search tooltip message")];
+					}
+                    // don't log here ... it's called hundreds of times.
+					[tip flushCachedRegexData];
+                    // the regex below is causing a crash so I've added logging to RegexLite exception generation.
+
+                    SPLog(@"tip: %@", tip);
+
+                    // FIXME: oh ... is the regex is wrong.
+                    // (?<foo>bar) = Define a named group named "foo" consisting of pattern bar.
+                    // so (?<!\\\\)\\$CURRENT_FIELD" looks like the start of a group name,
+                    [tip replaceOccurrencesOfRegex:@"(?<!\\\\)\\$CURRENT_FIELD" withString:[NSRegularExpression escapedPatternForString:[[colNode name] backtickQuotedString]]];
+
+					[tip flushCachedRegexData];
+					tooltip = [NSString stringWithString:tip];
+				} else {
+					tooltip = @"";
+				}
+			}
+
+			OpNode *node = [[OpNode alloc] init];
+			[node setParentColumn:colNode];
+			[node setSettings:@{
+				@"title": ([filter objectForKey:@"MenuLabel"] ? [filter objectForKey:@"MenuLabel"] : @"not specified"),
+				@"tooltip": tooltip,
+				@"tag": @(i),
+				@"filterType": compareType,
+			}];
+			[node setFilter:filter];
+			[compareItems addObject:node];
+			i++;
+		}
+	}
+
+	{
+		OpNode *node = [[OpNode alloc] init];
+		[node setParentColumn:colNode];
+		[node setSettings:@{
+			@"isSeparator": @YES,
+		}];
+		[compareItems addObject:node];
+	}
+
+	{
+		OpNode *node = [[OpNode alloc] init];
+		[node setParentColumn:colNode];
+		[node setSettings:@{
+			@"title": NSLocalizedString(@"Edit Filters…", @"edit filter"),
+			@"tooltip": NSLocalizedString(@"Edit user-defined Filters…", @"edit user-defined filter"),
+			@"tag": @(i),
+			@"target": self,
+			@"action": [NSValue valueWithPointer:@selector(_editFiltersAction:)],
+			@"filterType": compareType,
+		}];
+		[compareItems addObject:node];
+	}
+
+	return compareItems;
+}
+
+- (IBAction)_editFiltersAction:(id)sender
+{
+	if([sender isKindOfClass:[NSMenuItem class]]) {
+		NSMenuItem *menuItem = (NSMenuItem *)sender;
+		NSString *filterType = [(NSDictionary *)[menuItem representedObject] objectForKey:@"filterType"];
+		if([filterType unboxNull]) [self openContentFilterManagerForFilterType:filterType];
+	}
+}
+
+- (void)openContentFilterManagerForFilterType:(NSString *)filterType
+{
+	// init query favorites controller
+	contentFilterManager = [[SPContentFilterManager alloc] initWithDatabaseDocument:tableDocumentInstance forFilterType:filterType];
+
+	// Open query favorite manager
+	[[tableDocumentInstance parentWindowControllerWindow] beginSheet:[contentFilterManager window] completionHandler:nil];
+}
+
+- (void)_contentFiltersHaveBeenUpdated:(NSNotification *)notification
+{
+	// invalidate our OpNode caches
+	opNodeCacheVersion++;
+	[self _doChangeToRuleEditorData:^{
+		//tell the rule editor to reload its criteria
+		[self->filterRuleEditor reloadCriteria];
+	}];
+}
+
+- (void)_ensureValidOperatorCache:(ColumnNode *)col
+{
+	if(![col operatorCache] || [col opCacheVersion] != opNodeCacheVersion) {
+		NSArray *ops = [self _compareTypesForColumn:col];
+		[col setOperatorCache:ops];
+		[col setOpCacheVersion:opNodeCacheVersion];
+	}
+}
+
+- (BOOL)isEmpty
+{
+	return ([[_modelContainer model] count] == 0);
+}
+
+- (void)addFilterExpression
+{
+	// reject this if no table columns exist: would cause invalid state (empty filter rows)
+    if(![columns count]) {
+        return;
+    }
+
+	[self _doChangeToRuleEditorData:^{
+		[self->filterRuleEditor insertRowAtIndex:0 withType:NSRuleEditorRowTypeSimple asSubrowOfRow:-1 animate:NO];
+	}];
+
+	[self focusFirstInputField];
+}
+
+/**
+ * Adds the seeded starter row, unchecked and waiting for its first edit; see the header.
+ */
+- (void)addStarterFilterExpression
+{
+	[self addFilterExpression];
+	if ([filterRuleEditor numberOfRows] < 1) return;
+
+	id checkbox = [[filterRuleEditor displayValuesForRow:0] firstObject];
+	if (![checkbox isKindOfClass:[NSButton class]]) return;
+	// a row seeded now carries no restored mark; the saved filter records the waiting state
+	[self.pendingStarter beginWithCheckbox:checkbox clearingRestoredMark:nil];
+	[self _updateButtonStates];
+	[self _updateFilterPreview];
+}
+
+/**
+ * The tracker of the seeded starter row, created on first use.
+ */
+- (SARuleFilterPendingStarter *)pendingStarter
+{
+	if (!_pendingStarter) _pendingStarter = [[SARuleFilterPendingStarter alloc] init];
+	return _pendingStarter;
+}
+
+/**
+ * Checks the waiting starter row when `row` is that row and refreshes the checkbox states, the buttons and
+ * the WHERE preview; does nothing for any other row.
+ */
+- (void)_enablePendingStarterInRow:(NSInteger)row
+{
+	if (![self.pendingStarter enableIfRow:row inEditor:filterRuleEditor]) return;
+
+	[self _updateCheckedStateUpwardsFromCompoundRow:[filterRuleEditor parentRowForRow:row]];
+	[self _updateButtonStates];
+	[self _updateFilterPreview];
+}
+
+/**
+ * Builds the serialized rule a dropped cell becomes: the column, its default operator for the value (or
+ * IS NULL) and the value; nil when the column is unknown.
+ */
+- (NSDictionary *)_makeSerializedRuleForColumn:(NSString *)columnName value:(NSString *)value isNull:(BOOL)isNull
+{
+	if (![columnName length]) return nil;
+	ColumnNode *col = [self _columnForName:columnName];
+	if (!col) return nil;
+
+	// Pick a sensible default operator: "IS NULL" for a NULL cell,
+	// otherwise the first single-argument operator advertised for the
+	// column's type group (already "=" for number / string / date per
+	// ContentFilters.plist, "contains" for spatial). The operator
+	// cache also contains separator / "Edit Filters…" entries which
+	// have a nil filter and nil name – skip those so they can never
+	// be chosen (messaging them into the serialized dict would crash).
+	[self _ensureValidOperatorCache:col];
+	NSArray *operators = [col operatorCache];
+	OpNode *chosen = nil;
+	if (isNull) {
+		// NULL cells must map to an IS NULL operator – any value-based
+		// fallback would turn "drag a NULL cell" into "filter where
+		// column = ''", which is silently wrong. If the column's type
+		// group doesn't advertise an IS NULL operator, refuse the drop
+		// so the user isn't handed an incorrect filter.
+		for (OpNode *op in operators) {
+			NSDictionary *filter = [op filter];
+			NSString *clause = [filter objectForKey:@"Clause"];
+			if (!filter || ![op name] || !clause) continue;
+			NSUInteger argc = [[filter objectForKey:@"NumberOfArguments"] unsignedIntegerValue];
+			if (argc == 0 && [clause rangeOfString:@"IS NULL" options:NSCaseInsensitiveSearch].location != NSNotFound) {
+				chosen = op;
+				break;
+			}
+		}
+		if (!chosen) return nil;
+	}
+	else {
+		for (OpNode *op in operators) {
+			NSDictionary *filter = [op filter];
+			if (!filter || ![op name]) continue;
+			NSUInteger argc = [[filter objectForKey:@"NumberOfArguments"] unsignedIntegerValue];
+			if (argc == 1) { chosen = op; break; }
+		}
+		if (!chosen) return nil;
+	}
+
+	NSUInteger argc = [[[chosen filter] objectForKey:@"NumberOfArguments"] unsignedIntegerValue];
+	NSMutableArray *values = [NSMutableArray arrayWithCapacity:argc];
+	for (NSUInteger i = 0; i < argc; ++i) {
+		[values addObject:(value ?: @"")];
+	}
+	return [SPRuleFilterController makeSerializedFilterForColumn:[col name] operator:[chosen name] values:values];
+}
+
+/**
+ * Appends a filter for a dropped cell as a further top-level row; see the header. An untouched
+ * starter row is replaced outright rather than filtered beside.
+ */
+- (BOOL)appendFilterForColumn:(NSString *)columnName value:(NSString *)value isNull:(BOOL)isNull
+{
+	if (!enabled || ![columns count]) return NO;
+	NSDictionary *newRule = [self _makeSerializedRuleForColumn:columnName value:value isNull:isNull];
+	if (!newRule) return NO;
+	// Keep the starter marker before enabling the reused checkbox clears it.
+	NSDictionary *currentFilter = [self serializedFilter];
+	// The untouched starter row is replaced below. Checking it first ends the tracking, so the
+	// filter that takes its place is not born waiting. (The rule editor builds a fresh checkbox
+	// for the restored row rather than reusing this one - measured - so what matters here is the
+	// tracking, not the button.)
+	[self _enablePendingStarterInRow:[self.pendingStarter rowInEditor:filterRuleEditor]];
+
+	// Merge the new rule with any existing tree as a further top-level
+	// row (combined via the AND/OR popup) so it can be fed to
+	// -restoreSerializedFilters:. An untouched starter row – the one the
+	// rule editor auto-creates on open – is replaced outright, so a first
+	// drag doesn't produce "firstColumn = '' AND droppedColumn = value".
+	// Filtering is not kicked off – the user confirms via the Apply
+	// Filters button or by pressing Return in any argument field.
+	NSDictionary *combined = [SARuleFilterRootConjunction appendingRule:newRule
+	                                                                 to:currentFilter
+	                                                  rootIsConjunction:rootIsConjunction];
+
+	[self restoreSerializedFilters:combined];
+	return YES;
+}
+
+/**
+ * Replaces the top-level rule `row` addresses with a filter for a dropped cell; see the header.
+ * A tree the row cannot address is refused and left untouched.
+ */
+- (BOOL)replaceFilterAtRow:(NSInteger)row forColumn:(NSString *)columnName value:(NSString *)value isNull:(BOOL)isNull
+{
+	if (!enabled || row < 0 || ![columns count]) return NO;
+	NSDictionary *newRule = [self _makeSerializedRuleForColumn:columnName value:value isNull:isNull];
+	if (!newRule) return NO;
+	// `row` addresses the root children, not rule editor rows. The helper takes it that way; it
+	// refuses only a `row` past the end and a target child that is itself a group - a group
+	// elsewhere in the tree is fine. The drop target refuses the same two and nothing else, so a
+	// plain top-level row beside a nested group is a valid target.
+	NSDictionary *combined = [SARuleFilterRootConjunction replacingRule:newRule
+	                                                              atRow:row
+	                                                                 in:[self serializedFilter]
+	                                                  rootIsConjunction:rootIsConjunction];
+	if (!combined) return NO;
+
+	// Dropping onto a row that was waiting for its first edit replaces it with a filter the user
+	// wants: end the tracking, or the filter that takes its place is born waiting. (The restored
+	// row gets a checkbox of its own, not this one - the rule editor builds the display values
+	// for a restored row from scratch, see -_restoreSerializedFilter:.)
+	//
+	// Only after the line above, which is what keeps a refused drop from changing anything: it
+	// used to ask the tracker first, and since `row` counts no subrows while the tracker counts
+	// all of them, a refused drop could switch an unrelated waiting row on with nothing in it -
+	// `column = ''` became a filter while the drop itself did nothing.
+	//
+	// The two numbers can still differ here, when a group sits above the dropped row. Asking
+	// about the wrong row then is harmless rather than right: `combined` was taken before this
+	// line, so the restore below puts every row back the way that snapshot has it. Worth knowing
+	// before moving either line.
+	[self _enablePendingStarterInRow:row];
+
+	[self restoreSerializedFilters:combined];
+	return YES;
+}
+
+/**
+ * Appends a nested AND/OR group holding one empty starter rule (see the header).
+ */
+- (void)addEmptyFilterGroup
+{
+	if (!enabled || ![columns count]) return;
+
+	// The group needs one row to be visible – give it the same empty
+	// starter rule a fresh row would show (first column, "=", no value).
+	NSDictionary *starter = [self _makeSerializedRuleForColumn:[(ColumnNode *)[columns firstObject] name] value:@"" isNull:NO];
+	if (!starter) return;
+	// And seed it the way the content view seeds the first row: waiting, not filtering. Checked,
+	// it put `column = ''` into the WHERE preview the moment the group appeared, which is what a
+	// seeded row was stopped from doing everywhere else. Its first edit checks it.
+	NSMutableDictionary *waitingStarter = [starter mutableCopy];
+	[waitingStarter setObject:@NO forKey:SerFilterExprEnabled];
+	[waitingStarter setObject:@YES forKey:SerFilterExprPendingStarter];
+	starter = waitingStarter;
+
+	// SARuleFilterRootConjunction decides the resulting tree: replace a lone
+	// seeded row, append a nested group beside a single row, or – with two or
+	// more rows – fold them into one group and flip the root so the action
+	// reads as "(a OR b) AND new" instead of "a OR b OR new".
+	NSDictionary *tree = [SARuleFilterRootConjunction treeAddingGroupWithStarter:starter
+	                                                                          to:[self serializedFilter]
+	                                                           rootIsConjunction:rootIsConjunction];
+	[self restoreSerializedFilters:tree];
+
+	// Focus the freshly added last row, like -addEmptyFilterRow does.
+	NSArray *model = [_modelContainer model];
+	if ([model count] > 0) {
+		[self _focusOnFieldInSubtree:[model lastObject]];
+	}
+}
+
+/**
+ * The drop zone's "add a filter" click: checks an unchecked row without a value when there is one - the
+ * waiting starter row or a row unchecked again - otherwise appends an empty row at the end.
+ */
+- (void)addEmptyFilterRow
+{
+	// Click-to-add on the drop box mirrors the in-row "+" behaviour by
+	// appending at the end of the list – the drop box sits below the
+	// existing rules, so inserting at index 0 would push the new row
+	// away from the click and feel wrong. `-addFilterExpression`
+	// (backing the top-right "Add Filter" button) keeps its original
+	// insert-at-0 semantics.
+	if (!enabled || ![columns count]) return;
+
+	// The seeded starter row is the empty filter this click asks for: check it rather than adding
+	// a second one next to it. A row the user switched on once and then unchecked is a filter set
+	// aside, even when its value is the empty string, and is left where it is.
+	NSInteger emptyRow = [self.pendingStarter reusableEmptyRowInEditor:filterRuleEditor];
+	if (emptyRow != NSNotFound) {
+		[self.pendingStarter forgetRow:emptyRow inEditor:filterRuleEditor];
+		NSArray *values = [filterRuleEditor displayValuesForRow:emptyRow];
+		[(NSButton *)[values firstObject] setState:NSControlStateValueOn];
+		[self _updateCheckedStateUpwardsFromCompoundRow:[filterRuleEditor parentRowForRow:emptyRow]];
+		[self _updateButtonStates];
+		[self _updateFilterPreview];
+		for (id value in values) {
+			if ([value isKindOfClass:[NSTextField class]]) {
+				[[(NSTextField *)value window] makeFirstResponder:value];
+				break;
+			}
+		}
+		return;
+	}
+
+	[self _doChangeToRuleEditorData:^{
+		NSInteger tailIndex = [self->filterRuleEditor numberOfRows];
+		[self->filterRuleEditor insertRowAtIndex:tailIndex withType:NSRuleEditorRowTypeSimple asSubrowOfRow:-1 animate:NO];
+	}];
+
+	// Focus the newly-inserted (last) row instead of the first, so the
+	// user can immediately start picking a column for the row they
+	// just created.
+	NSArray *model = [_modelContainer model];
+	if ([model count] > 0) {
+		[self _focusOnFieldInSubtree:[model lastObject]];
+	}
+}
+
+- (NSRuleEditor *)view
+{
+	return filterRuleEditor;
+}
+
+- (BOOL)isEnabled
+{
+	return enabled;
+}
+
+- (void)setEnabled:(BOOL)_enabled
+{
+	enabled = _enabled && [columns count] != 0;
+	[self _updateButtonStates];
+}
+
+- (NSString *)sqlWhereExpressionWithBinary:(BOOL)isBINARY error:(NSError **)err
+{
+	NSMutableString *filterString = [[NSMutableString alloc] init];
+	NSError *innerError = nil;
+
+	@autoreleasepool {
+		//get the serialized filter and try to optimise it
+		NSDictionary *filterTree = [[self class] _flattenSerializedFilter:[self _serializedFilterIncludingFilterDefinition:YES withDisabled:NO]];
+
+		// build it recursively
+		[[self class] _writeFilterTree:filterTree toString:filterString wrapInParenthesis:NO binary:isBINARY error:&innerError];
+
+		 // carry the error (if any) outside of the scope of the autoreleasepool
+	}
+
+	if(innerError) {
+		if(err) *err = innerError;
+		return nil;
+	}
+
+	if(err) *err = nil;
+
+	NSString *out = [filterString copy];
+
+	return out;
+}
+
+- (NSDictionary *)serializedFilter
+{
+	return [self _serializedFilterIncludingFilterDefinition:NO withDisabled:YES];
+}
+
+- (NSDictionary *)_serializedFilterIncludingFilterDefinition:(BOOL)includeDefinition withDisabled:(BOOL)includeDisabled
+{
+	NSMutableArray *rootItems = [NSMutableArray arrayWithCapacity:[[_modelContainer model] count]];
+	for(NSDictionary *item in [_modelContainer model]) {
+		NSDictionary *sub = [self _serializeSubtree:item includingDefinition:includeDefinition withDisabled:includeDisabled];
+		_addIfNotNil(rootItems, sub);
+	}
+	//the root serialized filter can either be an AND/OR group of multiple root items or a single root item
+	return [SARuleFilterRootConjunction serializedRootWithItems:rootItems isConjunction:rootIsConjunction];
+}
+
+- (NSDictionary *)_serializeSubtree:(NSDictionary *)item includingDefinition:(BOOL)includeDefinition withDisabled:(BOOL)includeDisabled
+{
+	NSRuleEditorRowType rowType = (NSRuleEditorRowType)[[item objectForKey:@"rowType"] unsignedIntegerValue];
+	// check if we have an AND or OR compound row
+	if(rowType == NSRuleEditorRowTypeCompound) {
+		// process all children
+		NSArray *subrows = [item objectForKey:@"subrows"];
+		NSMutableArray *children = [[NSMutableArray alloc] initWithCapacity:[subrows count]];
+		for(NSDictionary *subitem in subrows) {
+			NSDictionary *sub = [self _serializeSubtree:subitem includingDefinition:includeDefinition withDisabled:includeDisabled];
+			_addIfNotNil(children, sub);
+		}
+		NSDictionary *out = nil;
+		// if we are empty return nil instead (can happen if all children are disabled)
+		if([children count]) {
+			StringNode *node = [[item objectForKey:@"criteria"] objectAtIndex:1]; //enable state is the result of the children's enable state - not serialized
+			BOOL isConjunction = [@"AND" isEqualToString:[node value]];
+			out = @{
+				SerFilterClass: SerFilterClassGroup,
+				SerFilterGroupIsConjunction: @(isConjunction),
+				SerFilterGroupChildren: children,
+			};
+		}
+		return out;
+	}
+	else {
+		NSArray *criteria = [item objectForKey:@"criteria"];
+		NSArray *displayValues = [item objectForKey:@"displayValues"];
+		// 3 == checkbox + column + operator
+		if([criteria count] < 3 || [criteria count] != [displayValues count]) {
+			return nil;
+		}
+		BOOL isEnabled = ([(NSButton *)[displayValues objectAtIndex:0] state] == NSControlStateValueOn);
+		if(!isEnabled && !includeDisabled) {
+			return nil;
+		}
+		ColumnNode *col = [criteria objectAtIndex:1];
+		OpNode *op = [criteria objectAtIndex:2];
+		NSMutableArray *filterValues = [[NSMutableArray alloc] initWithCapacity:2];
+		for (NSUInteger i = 3; i < [criteria count]; ++i) { // see above for first three
+			if([(RuleNode *)[criteria objectAtIndex:i] type] != RuleNodeTypeArgument) continue;
+			// if we found an argument, the displayValue will be an NSTextField we can ask for the value
+			NSString *value = [(NSTextField *)[displayValues objectAtIndex:i] stringValue];
+			[filterValues addObject:value];
+		}
+		NSDictionary *out = @{
+			SerFilterClass: SerFilterClassExpression,
+			SerFilterExprColumn: [col name],
+			SerFilterExprType: [[op settings] objectForKey:@"filterType"],
+			SerFilterExprComparison: [op name],
+			SerFilterExprValues: filterValues,
+			SerFilterExprEnabled: @(isEnabled),
+		};
+		// Keep the seeded starter row recognisable, so a reload or a return to this table restores
+		// it waiting for its first edit instead of as a plain unchecked row.
+		if ([self.pendingStarter isCheckbox:[displayValues objectAtIndex:0]]) {
+			NSMutableDictionary *marked = [out mutableCopy];
+			[marked setObject:@YES forKey:SerFilterExprPendingStarter];
+			out = marked;
+		}
+		if(includeDefinition) {
+			out = [NSMutableDictionary dictionaryWithDictionary:out];
+			[(NSMutableDictionary *)out setObject:[op filter] forKey:SerFilterExprDefinition];
+		}
+		return out;
+	}
+}
+
+void _addIfNotNil(NSMutableArray *array, id toAdd)
+{
+	if(toAdd != nil) [array addObject:toAdd];
+}
+
+- (void)restoreSerializedFilters:(NSDictionary *)serialized
+{
+	if(!serialized) return;
+
+	// a group at the root becomes the top-level rows plus the AND/OR popup, anything else is a single row
+	SARuleFilterRootRestorePlan *plan = [SARuleFilterRootConjunction restorePlanFor:serialized];
+	[self setRootIsConjunction:[plan isConjunction]];
+
+	NSMutableArray *newModel = [[NSMutableArray alloc] init];
+	@autoreleasepool {
+		for(NSDictionary *item in [plan items]) {
+			_addIfNotNil(newModel, [self _restoreSerializedFilter:item]);
+		}
+	}
+
+	[self _doChangeToRuleEditorData:^{
+		// we have to access the model in the same way the rule editor does for it to realize the changes
+		NSMutableArray *proxy = [self->_modelContainer mutableArrayValueForKey:@"model"];
+		[proxy setArray:newModel];
+	}];
+
+	//finally update all checkboxes
+	[self _recalculateCheckboxStatesFromRow:-1];
+	[self _updateFilterPreview];
+}
+
+- (NSMutableDictionary *)_restoreSerializedFilter:(NSDictionary *)serialized
+{
+	NSMutableDictionary *obj = [[NSMutableDictionary alloc] initWithCapacity:4];
+
+	if(SerIsGroup(serialized)) {
+		[obj setObject:@(NSRuleEditorRowTypeCompound) forKey:@"rowType"];
+
+		//the checkbox state is not important here. that will be updated at the end
+		EnableNode *checkbox = [[EnableNode alloc] init];
+		[checkbox setAllowsMixedState:YES];
+
+		StringNode *criterion = [[StringNode alloc] init];
+		[criterion setValue:([[serialized objectForKey:SerFilterGroupIsConjunction] boolValue] ? @"AND" : @"OR")];
+		StringNode *explainer = [SPRuleFilterController _conjunctionExplainerNode];
+		// those have to be mutable arrays for the rule editor to work
+		NSMutableArray *criteria = [NSMutableArray arrayWithArray:@[checkbox,criterion,explainer]];
+		[obj setObject:criteria forKey:@"criteria"];
+
+		id checkDisplayValue = [self ruleEditor:filterRuleEditor displayValueForCriterion:checkbox inRow:-1];
+		id displayValue = [self ruleEditor:filterRuleEditor displayValueForCriterion:criterion inRow:-1];
+		id explainerDisplayValue = [self ruleEditor:filterRuleEditor displayValueForCriterion:explainer inRow:-1];
+		NSMutableArray *displayValues = [NSMutableArray arrayWithArray:@[checkDisplayValue,displayValue,explainerDisplayValue]];
+		[obj setObject:displayValues forKey:@"displayValues"];
+
+		NSArray *children = [serialized objectForKey:SerFilterGroupChildren];
+		NSMutableArray *subrows = [[NSMutableArray alloc] initWithCapacity:[children count]];
+		for(NSDictionary *child in children) {
+			_addIfNotNil(subrows, [self _restoreSerializedFilter:child]);
+		}
+		[obj setObject:subrows forKey:@"subrows"];
+	}
+	else {
+		[obj setObject:@(NSRuleEditorRowTypeSimple) forKey:@"rowType"];
+		//simple rows can't have child rows
+		[obj setObject:[NSMutableArray array] forKey:@"subrows"];
+
+		// 6 == enable checkbox + column + op + first arg + connector + second arg
+		NSMutableArray *criteria = [NSMutableArray arrayWithCapacity:6];
+
+		//first look up the column, bail if it doesn't exist anymore or types changed
+		NSString *columnName = [serialized objectForKey:SerFilterExprColumn];
+		ColumnNode *col = [self _columnForName:columnName];
+		if(!col) {
+			SPLog(@"cannot deserialize unknown column: %@", columnName);
+			goto fail;
+		}
+
+		// add enable checkbox
+		NSNumber *enabledValue = [serialized objectForKey:SerFilterExprEnabled];
+		EnableNode *enabler = [[EnableNode alloc] init];
+		// for backwards compatibility. this key was added later
+		//                        vvvvvvvvvvvvv
+		[enabler setInitialState:(!enabledValue || [enabledValue boolValue])];
+		if ([[serialized objectForKey:SerFilterExprPendingStarter] boolValue]) {
+			// Unchecked through the tracker when its checkbox is created. The node itself stays like a
+			// fresh row's, so reloading the criteria (after "Edit Filters…") keeps the row and its checkbox.
+			// Several rows may carry this - a group added while another seeded row is still waiting - and
+			// each of them is tracked and reacts to its own first edit.
+			[enabler setInitialState:YES];
+			[enabler setPendingStarter:YES];
+		}
+		[criteria addObject:enabler];
+
+		// add column
+		[criteria addObject:col];
+
+		//next try to find the given operator
+		NSString *operatorName = [serialized objectForKey:SerFilterExprComparison];
+		OpNode *op = [self _operatorNamed:operatorName forColumn:col];
+		if(!op) {
+			SPLog(@"cannot deserialize unknown operator: %@",operatorName);
+			goto fail;
+		}
+		[criteria addObject:op];
+
+		// we still have to check if the current column type is the same as when we serialized because an operator
+		// with the same name can still act differently for different types
+		NSString *curFilterType = [[op settings] objectForKey:@"filterType"];
+		NSString *serFilterType = [serialized objectForKey:SerFilterExprType]; // this is optional
+		if(serFilterType && ![curFilterType isEqualToString:serFilterType]) {
+			SPLog(@"mismatch in filter types for operator %@: current=%@, serialized=%@",op,curFilterType,serFilterType);
+			goto fail;
+		}
+
+		//now we have to create the argument node(s)
+		NSUInteger numOfArgs = [[[op filter] objectForKey:@"NumberOfArguments"] unsignedIntegerValue];
+		//fail if the current op requires more arguments than we have stored values for
+		NSArray *values = [serialized objectForKey:SerFilterExprValues];
+		if(numOfArgs > [values count]) {
+			SPLog(@"filter operator %@ requires %ld arguments, but only have %ld stored values!",op,numOfArgs,[values count]);
+			goto fail;
+		}
+		
+		// otherwise add them
+		for (NSUInteger i = 0; i < numOfArgs; ++i) {
+			// insert connector node between args?
+			if(i > 0) {
+				ConnectorNode *node = [[ConnectorNode alloc] init];
+				[node setFilter:[op filter]];
+				[node setLabelIndex:(i-1)]; // label 0 follows argument 0
+				[criteria addObject:node];
+			}
+			ArgNode *arg = [[ArgNode alloc] init];
+			[arg setArgIndex:i];
+			[arg setFilter:[op filter]];
+			[arg setInitialValue:[values objectAtIndex:i]];
+			[criteria addObject:arg];
+		}
+		
+		[obj setObject:criteria forKey:@"criteria"];
+		
+		//the last thing that remains is creating the displayValues for all criteria
+		NSMutableArray *displayValues = [NSMutableArray arrayWithCapacity:[criteria count]];
+		for(id criterion in criteria) {
+			id dispValue = [self ruleEditor:filterRuleEditor displayValueForCriterion:criterion inRow:-1];
+			if(!dispValue) {
+				SPLog(@"got nil displayValue for criterion %@ on deserialization!",criterion);
+				goto fail;
+			}
+			[displayValues addObject:dispValue];
+		}
+		[obj setObject:displayValues forKey:@"displayValues"];
+	}
+
+	return obj;
+
+fail:
+	return nil;
+}
+
++ (NSDictionary *)makeSerializedFilterForColumn:(NSString *)colName operator:(NSString *)opName values:(NSArray *)values
+{
+	return @{
+		SerFilterClass:          SerFilterClassExpression,
+		SerFilterExprColumn:     colName,
+		SerFilterExprComparison: opName,
+		SerFilterExprValues:     values,
+		SerFilterExprEnabled:    @YES,
+	};
+}
+
+- (ColumnNode *)_columnForName:(NSString *)name
+{
+	if([name length]) {
+		for (ColumnNode *col in columns) {
+			if ([name isEqualToString:[col name]]) return col;
+		}
+	}
+	return nil;
+}
+
+- (OpNode *)_operatorNamed:(NSString *)title forColumn:(ColumnNode *)col
+{
+	if([title length]) {
+		// check if we have the operator cache, otherwise build it
+		[self _ensureValidOperatorCache:col];
+		// try to find it in the operator cache
+		for(OpNode *node in [col operatorCache]) {
+			if([[node name] isEqualToString:title]) return node;
+		}
+	}
+	return nil;
+}
+
+BOOL SerIsGroup(NSDictionary *dict)
+{
+	return [SerFilterClassGroup isEqual:[dict objectForKey:SerFilterClass]];
+}
+
+/**
+ * This method looks at the given serialized filter in a recursive manner and
+ * when it encounters
+ * - a group node with only a single child or
+ * - a child that is a group node of the same kind as the parent one
+ * it will pull the child(ren) up
+ *
+ * So for example:
+ *   AND(expr1)                  => expr1
+ *   AND(expr1,AND(expr2,expr3)) => AND(expr1,expr2,expr3)
+ *
+ * The input dict is not modified, the returned dict will be equal to the input
+ * dict or have parts of it removed or replaced with new dicts.
+ */
++ (NSDictionary *)_flattenSerializedFilter:(NSDictionary *)in
+{
+	// return non-group-nodes as is
+	if(!SerIsGroup(in)) return in;
+
+	NSNumber *inIsConjunction = [in objectForKey:SerFilterGroupIsConjunction];
+
+	// first give all children the chance to flatten (depth first)
+	NSArray *children = [in objectForKey:SerFilterGroupChildren];
+	NSMutableArray *flatChildren = [NSMutableArray arrayWithCapacity:[children count]];
+	NSUInteger changed = 0;
+	for(NSDictionary *child in children) {
+		NSDictionary *flattened = [self _flattenSerializedFilter:child];
+		//take a closer look at the (possibly changed) child - is it a group node of the same kind as us?
+		if(SerIsGroup(flattened) && [inIsConjunction isEqual:[flattened objectForKey:SerFilterGroupIsConjunction]]) {
+			[flatChildren addObjectsFromArray:[flattened objectForKey:SerFilterGroupChildren]];
+			changed++;
+			continue;
+		}
+		else if(flattened != child) {
+			changed++;
+		}
+		[flatChildren addObject:flattened];
+	}
+	// if there is only a single child, return it (flattening)
+	if([flatChildren count] == 1) return [flatChildren objectAtIndex:0];
+	// if none of the children changed return the original input
+	if(!changed) return in;
+	// last variant: some of our children changed, but we remain
+	return @{
+		SerFilterClass: SerFilterClassGroup,
+		SerFilterGroupIsConjunction: inIsConjunction,
+		SerFilterGroupChildren: flatChildren
+	};
+}
+
++ (void)_writeFilterTree:(NSDictionary *)in toString:(NSMutableString *)out wrapInParenthesis:(BOOL)wrap binary:(BOOL)isBINARY error:(NSError **)err
+{
+	NSError *myErr = nil;
+	
+	if(wrap) [out appendString:@"("];
+	
+	if(SerIsGroup(in)) {
+		BOOL isConjunction = [[in objectForKey:SerFilterGroupIsConjunction] boolValue];
+		NSString *connector = isConjunction ? @"AND" : @"OR";
+		BOOL first = YES;
+		NSArray *children = [in objectForKey:SerFilterGroupChildren];
+		for(NSDictionary *child in children) {
+			if(!first) [out appendFormat:@" %@ ",connector];
+			else first = NO;
+			// if the child is a group node but of a different kind we want to wrap it in order to prevent operator precedence confusion
+			// expression children will always be wrapped for clarity, except if there is only a single one and we are already wrapped
+			BOOL wrapChild = YES;
+			if(SerIsGroup(child)) {
+				BOOL childIsConjunction = [[child objectForKey:SerFilterGroupIsConjunction] boolValue];
+				if(isConjunction == childIsConjunction) wrapChild = NO;
+			}
+			else {
+				if(wrap && [children count] == 1) wrapChild = NO;
+			}
+			[self _writeFilterTree:child toString:out wrapInParenthesis:wrapChild binary:isBINARY error:&myErr];
+			if(myErr) {
+				if(err) *err = myErr;
+				return;
+			}
+		}
+	}
+	else {
+		// finally - build a SQL filter expression
+		NSDictionary *filter = [in objectForKey:SerFilterExprDefinition];
+		if(!filter) {
+			if(err) *err = [NSError errorWithDomain:SPErrorDomain code:0 userInfo:@{
+				NSLocalizedDescriptionKey: NSLocalizedString(@"Fatal error while retrieving content filter. No filter definition found.", @"filter to sql conversion : internal error : 0"),
+			}];
+			return;
+		}
+
+		if(![filter objectForKey:@"NumberOfArguments"]) {
+			if(err) *err = [NSError errorWithDomain:SPErrorDomain code:1 userInfo:@{
+				NSLocalizedDescriptionKey: NSLocalizedString(@"Error while retrieving filter clause. No “NumberOfArguments” key found.", @"filter to sql conversion : internal error : invalid filter definition (1)"),
+			}];
+			return;
+		}
+
+		if(![filter objectForKey:@"Clause"] || ![(NSString *)[filter objectForKey:@"Clause"] length]) {
+			if(err) *err = [NSError errorWithDomain:SPErrorDomain code:2 userInfo:@{
+				NSLocalizedDescriptionKey: NSLocalizedString(@"Content Filter clause is empty.", @"filter to sql conversion : internal error : invalid filter definition (2)"),
+			}];
+			return;
+		}
+
+		NSArray *values = [in objectForKey:SerFilterExprValues];
+
+		SPTableFilterParser *parser = [[SPTableFilterParser alloc] initWithFilterClause:[filter objectForKey:@"Clause"]
+		                                                              numberOfArguments:[[filter objectForKey:@"NumberOfArguments"] integerValue]];
+		[parser setArgument:[values firstObject]];
+		[parser setFirstBetweenArgument:[values firstObject]];
+		[parser setSecondBetweenArgument:[values safeObjectAtIndex:1]];
+		[parser setSuppressLeadingTablePlaceholder:[[filter objectForKey:@"SuppressLeadingFieldPlaceholder"] boolValue]];
+		[parser setCaseSensitive:isBINARY];
+		[parser setCurrentField:[in objectForKey:SerFilterExprColumn]];
+
+		NSString *sql = [parser filterString];
+		// SPTableFilterParser will return nil if it doesn't like the arguments and NSMutableString doesn't like nil
+		if(!sql) {
+			if(err) *err = [NSError errorWithDomain:SPErrorDomain code:3 userInfo:@{
+				NSLocalizedDescriptionKey: NSLocalizedString(@"No valid SQL expression could be generated. Perhaps the filter definition is invalid.", @"filter to sql conversion : internal error : SPTableFilterParser failed"),
+			}];
+			return;
+		}
+		[out appendString:sql];
+	}
+	
+	if(wrap) [out appendString:@")"];
+}
+
+- (void)_doChangeToRuleEditorData:(void (^)(void))duringBlock
+{
+	@try {
+		isDoingChangeCausedOutsideOfRuleEditor = YES;
+		duringBlock();
+	}
+	@finally {
+		isDoingChangeCausedOutsideOfRuleEditor = NO;
+	}
+}
+
+@end
+
+#pragma mark -
+
+@implementation RuleNode
+
+@synthesize type = type;
+
+- (NSUInteger)hash {
+	return type;
+}
+
+- (BOOL)isEqual:(id)other {
+	if (other == self) return YES;
+	if (other && [[other class] isEqual:[self class]] && [(RuleNode *)other type] == type) return YES;
+
+	return NO;
+}
+
+- (BOOL)isViableReplacementFor:(RuleNode *)other
+{
+	return [other type] == type;
+}
+
+@end
+
+@implementation ColumnNode
+
+@synthesize name = name;
+@synthesize typegrouping = typegrouping;
+@synthesize operatorCache = operatorCache;
+@synthesize opCacheVersion = opCacheVersion;
+
+- (instancetype)init
+{
+	if((self = [super init])) {
+		type = RuleNodeTypeColumn;
+		opCacheVersion = 0;
+	}
+	return self;
+}
+
+- (NSString *)description
+{
+	return [NSString stringWithFormat:@"ColumnNode<%@@%p>",[self name],self];
+}
+
+- (NSUInteger)hash {
+	return ([name hash] ^ [typegrouping hash] ^ [super hash]);
+}
+
+- (BOOL)isEqual:(id)other {
+	if (other == self) return YES;
+	if (other && [[other class] isEqual:[self class]]) {
+		ColumnNode *otherColumn = (ColumnNode *)other;
+		if ([name isEqualToString:[otherColumn name]] && [typegrouping isEqualToString:[otherColumn typegrouping]]) return YES;
+	}
+
+	return NO;
+}
+
+@end
+
+@implementation StringNode
+
+@synthesize value = value;
+
+- (instancetype)init
+{
+	if((self = [super init])) {
+		type = RuleNodeTypeString;
+	}
+	return self;
+}
+
+- (NSUInteger)hash {
+	return ([value hash] ^ [super hash]);
+}
+
+- (BOOL)isEqual:(id)other {
+	if (other == self) return YES;
+	if (other && [[other class] isEqual:[self class]] && [value isEqualToString:[(StringNode *)other value]]) return YES;
+
+	return NO;
+}
+
+@end
+
+@implementation OpNode
+
+@synthesize parentColumn = parentColumn;
+@synthesize settings = settings;
+@synthesize filter = filter;
+
+- (instancetype)init
+{
+	if((self = [super init])) {
+		type = RuleNodeTypeOperator;
+	}
+	return self;
+}
+
+
+- (NSUInteger)hash {
+	return (([parentColumn hash] << 16) ^ [settings hash] ^ [super hash]);
+}
+
+- (BOOL)isEqual:(id)other {
+	if (other == self) return YES;
+	if (other && [[other class] isEqual:[self class]] && [settings isEqualToDictionary:[(OpNode *)other settings]] && [parentColumn isEqual:[other parentColumn]]) return YES;
+
+	return NO;
+}
+
+- (BOOL)isViableReplacementFor:(RuleNode *)other {
+	return [super isViableReplacementFor:other] && [parentColumn isEqual:[(OpNode *)other parentColumn]];
+}
+
+- (NSString *)name
+{
+	return [filter objectForKey:@"MenuLabel"];
+}
+
+@end
+
+@implementation ArgNode
+
+@synthesize filter = filter;
+@synthesize argIndex = argIndex;
+@synthesize initialValue = initialValue;
+
+- (instancetype)init
+{
+	if((self = [super init])) {
+		type = RuleNodeTypeArgument;
+	}
+	return self;
+}
+
+
+- (NSUInteger)hash {
+	// initialValue does not count towards hash because two Args are not different if only the initialValue differs
+	return ((argIndex << 16) ^ [filter hash] ^ [super hash]);
+}
+
+- (BOOL)isEqual:(id)other {
+	// initialValue does not count towards isEqual: because two Args are not different if only the initialValue differs
+	if (other == self) return YES;
+	if (other && [[other class] isEqual:[self class]] && [filter isEqualToDictionary:[(ArgNode *)other filter]] && argIndex == [(ArgNode *)other argIndex]) return YES;
+
+	return NO;
+}
+
+- (BOOL)isViableReplacementFor:(RuleNode *)other {
+	return [super isViableReplacementFor:other] && [(ArgNode *)other argIndex] == argIndex;
+}
+
+@end
+
+@implementation ConnectorNode
+
+@synthesize filter = filter;
+@synthesize labelIndex = labelIndex;
+
+- (instancetype)init
+{
+	if((self = [super init])) {
+		type = RuleNodeTypeConnector;
+	}
+	return self;
+}
+
+
+- (NSUInteger)hash {
+	return ((labelIndex << 16) ^ [filter hash] ^ [super hash]);
+}
+
+- (BOOL)isEqual:(id)other {
+	if (other == self) return YES;
+	if (other && [[other class] isEqual:[self class]] && [filter isEqualToDictionary:[(ConnectorNode *)other filter]] && labelIndex == [(ConnectorNode *)other labelIndex]) return YES;
+
+	return NO;
+}
+
+@end
+
+@implementation EnableNode
+
+@synthesize initialState = initialState;
+@synthesize allowsMixedState = allowsMixedState;
+@synthesize pendingStarter = _pendingStarter;
+
+- (instancetype)init {
+	self = [super init];
+	if (self) {
+		type = RuleNodeTypeEnable;
+		initialState = YES;
+		allowsMixedState = NO;
+	}
+	return self;
+}
+
+- (NSUInteger)hash {
+	return (([super hash] << 2) | (initialState << 1) | allowsMixedState);
+}
+
+- (BOOL)isEqual:(id)other {
+	if (other == self) return YES;
+	if (other && [[other class] isEqual:[self class]] && [self initialState] == [(EnableNode *)other initialState] && [self allowsMixedState] == [(EnableNode *)other allowsMixedState]) return YES;
+
+	return NO;
+}
+
+@end
+
+#pragma mark -
+
+@implementation ModelContainer
+
+@synthesize model = model;
+
+- (instancetype)init
+{
+	if (self = [super init]) {
+		model = [[NSMutableArray alloc] init];
+	}
+	return self;
+}
+
+
+// KVO
+
+- (void)insertObject:(id)obj inModelAtIndex:(NSUInteger)idx
+{
+	[model insertObject:obj atIndex:idx];
+}
+
+- (void)removeObjectFromModelAtIndex:(NSUInteger)idx
+{
+	[model removeObjectAtIndex:idx];
+}
+
+- (void)insertModel:(NSArray *)array atIndexes:(NSIndexSet *)indexes
+{
+	[model insertObjects:array atIndexes:indexes];
+}
+
+- (void)removeModelAtIndexes:(NSIndexSet *)indexes
+{
+	[model removeObjectsAtIndexes:indexes];
+}
+
+@end

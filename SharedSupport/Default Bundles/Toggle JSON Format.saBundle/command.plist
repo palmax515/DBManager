@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>author</key>
+	<string>Hans-Jörg Bibiko</string>
+	<key>bundleVersion</key>
+	<integer>3</integer>
+	<key>category</key>
+	<string>Format</string>
+	<key>command</key>
+	<string>#!/usr/bin/perl
+
+use strict;
+use warnings;
+use JSON::PP;
+
+local $/;
+my $data = &lt;STDIN&gt;;
+$data = '' unless defined $data;
+
+my ($firstLine) = split /\n/, $data, 2;
+$firstLine = '' unless defined $firstLine;
+my $serialize = ($firstLine =~ /^\s*\{\s*$/) ? 1 : 0;
+
+my $decoded;
+eval {
+    $decoded = JSON::PP-&gt;new-&gt;utf8-&gt;allow_nonref-&gt;decode($data);
+    1;
+} or do {
+    print "&lt;font&gt;An error occurred while formatting JSON data!&lt;/font&gt;";
+    exit($ENV{SP_BUNDLE_EXIT_SHOW_AS_HTML_TOOLTIP} // 1);
+};
+
+my $encoder = JSON::PP-&gt;new-&gt;utf8-&gt;allow_nonref-&gt;canonical;
+$encoder = $encoder-&gt;pretty unless $serialize;
+
+print $encoder-&gt;encode($decoded);</string>
+	<key>contact</key>
+	<string>znvy@ovovxb.qr</string>
+	<key>description</key>
+	<string>If the first line of the selection or the entire content of the current text input field only contains a "{" then serialize the JSON data otherwise the JSON data will be pretty printed. This bundle uses Perl's built-in JSON::PP module with UTF-8 decoding and encoding.
+
+Version 3.0</string>
+	<key>input</key>
+	<string>selectedtext</string>
+	<key>input_fallback</key>
+	<string>entirecontent</string>
+	<key>internalKeyEquivalent</key>
+	<dict>
+		<key>characters</key>
+		<string>J</string>
+		<key>keyCode</key>
+		<integer>38</integer>
+		<key>modifierFlags</key>
+		<integer>1572864</integer>
+	</dict>
+	<key>isDefaultBundle</key>
+	<true/>
+	<key>keyEquivalent</key>
+	<string>~@j</string>
+	<key>name</key>
+	<string>Toggle JSON Format</string>
+	<key>output</key>
+	<string>replaceselection</string>
+	<key>scope</key>
+	<string>inputfield</string>
+	<key>tooltip</key>
+	<string>Serialize or pretty print JSON data</string>
+	<key>uuid</key>
+	<string>87FD8A4F-90AA-4020-9E0B-8CDD05764D08</string>
+</dict>
+</plist>
