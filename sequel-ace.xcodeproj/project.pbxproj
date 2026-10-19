@@ -2204,6 +2204,7 @@
 				B57747D50F7A8978003B34F9 /* SPPreferenceController.h */,
 				B57747D30F7A8974003B34F9 /* SPPreferenceController.m */,
 				17D390A8127B556F00672B13 /* SPPreferencePaneProtocol.h */,
+				17D390A7127B551400672B13 /* Panes */,
 			);
 			path = Preferences;
 			sourceTree = "<group>";
@@ -2239,6 +2240,10 @@
 				584D88A81515034200F24774 /* NSNotificationCenterThreadingAdditions.m */,
 				5841929F101E57BB0089807F /* NSMutableArray-MultipleSort.h */,
 				584192A0101E57BB0089807F /* NSMutableArray-MultipleSort.m */,
+				17DC8826126B22F200E9AAEC /* Views */,
+				58B909A111C3B8EC000826E5 /* Localization */,
+				177486451528EE820036121C /* RegexKitLite */,
+				296DC8A40F90914B002A3258 /* MGTemplateEngine */,
 			);
 			name = "Third Party";
 			path = ThirdParty;
@@ -2339,10 +2344,17 @@
 		17E641420EF01E8A001BC333 /* Source */ = {
 			isa = PBXGroup;
 			children = (
+				17E641470EF01EB8001BC333 /* Controllers */,
+				17FC36AE141425D600AC3602 /* Frameworks */,
+				17E642050EF020A3001BC333 /* Interfaces */,
 				17E641440EF01EB5001BC333 /* main.m */,
+				17E6415D0EF01EF9001BC333 /* Model */,
+				17E6416E0EF01F3B001BC333 /* Other */,
 				51F4AFBD24B26665006144D5 /* Sequel-Ace-Bridging-Header.h */,
 				17E641450EF01EB5001BC333 /* Sequel-Ace.pch */,
 				17DC8825126B222D00E9AAEC /* Third Party */,
+				17E641670EF01F19001BC333 /* Views */,
+				51B09FDB2F767A43003BAFFF /* Protocols */,
 			);
 			path = Source;
 			sourceTree = "<group>";
@@ -2350,7 +2362,12 @@
 		17E641430EF01E90001BC333 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				517E44F5257A906100ED333B /* Localization */,
+				1740F8370FC306C900CF3699 /* Plists */,
+				17E6418B0EF01FF7001BC333 /* Images */,
+				1740F8360FC306AE00CF3699 /* Scripting */,
 				58D1006813A57FAE0092E019 /* Localization Strings Files */,
+				1740F8350FC3069700CF3699 /* Templates */,
 				96D494B8249C07940092F335 /* SSH Helpers */,
 				583A278D23F06F1000FBE97B /* Colors.xcassets */,
 				49B1A8172FC5FCC2000A4916 /* AppIcon.icon */,
@@ -2370,10 +2387,14 @@
 				17F5B1491048C4C000FC794F /* Data Export */,
 				17D38EFB12777B2300672B13 /* Data Import */,
 				173E70A6107FF61D008733C9 /* Main View Controllers */,
+				173E70D5107FF7AF008733C9 /* Other */,
+				17D390A6127B54F300672B13 /* Preferences */,
 				17E6414A0EF01EF6001BC333 /* SPAppController.h */,
 				17E6414B0EF01EF6001BC333 /* SPAppController.m */,
 				51BB391B25F82B060048CA69 /* SPAppController.swift */,
+				CB4D0AEC506704E1B3B2A8C7 /* MCP */,
 				173E70D2107FF687008733C9 /* Subview Controllers */,
+				17D3583C1533766800A654D7 /* Window */,
 			);
 			path = Controllers;
 			sourceTree = "<group>";
@@ -2419,6 +2440,8 @@
 				BC2898F2125F4488001B50E1 /* SPGeometryDataView.m */,
 				9BE768F3989033CEDDC2027E /* SPFillView.m */,
 				9BE76CC0CCE3A4A74E3E8D5E /* SPFillView.h */,
+				17FDB0AC1280938000DBBBC2 /* Controls */,
+				171312CF109D23CA00FB465F /* Cells */,
 				17DC8829126B337900E9AAEC /* Text Views */,
 				17DC8827126B32F300E9AAEC /* Table Views */,
 				17DF51241163C68600E3F396 /* Outline Views */,
@@ -2432,11 +2455,19 @@
 		17E6416E0EF01F3B001BC333 /* Other */ = {
 			isa = PBXGroup;
 			children = (
+				FD2056032C3A7E64008DD271 /* Formatters */,
+				51F4AFB924B26646006144D5 /* Extensions */,
+				507FF10E1BBCC4A900104523 /* Utility */,
 				1198F5B01174EDA700670590 /* Database Actions */,
 				583CE39511722B70008F148E /* File Compression */,
+				173284E51088FEC20062E892 /* Data */,
+				17E6416F0EF01F4C001BC333 /* Keychain */,
+				58FEF15E0F23D60A00518E8E /* Parsing */,
 				17E641720EF01F6B001BC333 /* SSH Tunnel */,
 				B57747D60F7A8990003B34F9 /* Category Additions */,
 				58DA884E103E1597000B98DF /* Debugging & Support */,
+				F3A4B8C191E14E7094C9C005 /* AWS */,
+				FA1B2C3D4E5F6A7B8C9D0E21 /* Vault */,
 			);
 			path = Other;
 			sourceTree = "<group>";
@@ -2627,6 +2658,8 @@
 				173C837011AAD26E00B8B084 /* SPExportUtilities.m */,
 				582F022F1370B52600B30621 /* SPExportFileNameTokenObject.h */,
 				582F02301370B52600B30621 /* SPExportFileNameTokenObject.m */,
+				17F90E451210B41100274C98 /* Model */,
+				173C836C11AAD24300B8B084 /* Exporters */,
 				519788CB30502FBB00C5D23D /* SAExportOutputEncoding.swift */,
 			);
 			name = "Data Export";
@@ -2677,6 +2710,8 @@
 			children = (
 				8D15AC370486D014006FF6A4 /* Sequel Ace.app */,
 				380F4ED90FC0B50500B0BFD7 /* Unit Tests.xctest */,
+				58CDB3360FCE13C900F8ACA3 /* SequelAceTunnelAssistant */,
+				58B9096111C3A42B000826E5 /* xibLocalizationPostprocessor */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -2685,6 +2720,8 @@
 			isa = PBXGroup;
 			children = (
 				1A445DA925BACBE5004E9A77 /* naughty_strings.txt */,
+				1AB0688E24A355B500E2AAC2 /* certs */,
+				1AB0689424A355B500E2AAC2 /* keys */,
 			);
 			path = fixtures;
 			sourceTree = "<group>";
@@ -2737,9 +2774,15 @@
 		2A37F4AAFDCFA73011CA2CEA = {
 			isa = PBXGroup;
 			children = (
+				518E02F227B91FBC007973E3 /* Entitlements */,
 				969178A324A5640D0012ED42 /* Default Bundles */,
 				969178A424A5640D0012ED42 /* Default Themes */,
+				2A37F4C3FDCFA73011CA2CEA /* Frameworks */,
+				1798F17E1550171B004B0AB8 /* LICENSE */,
+				19C28FB0FE9D524F11CA2CBB /* Products */,
 				38F37194182F0621008EB031 /* readme.md */,
+				17E641430EF01E90001BC333 /* Resources */,
+				17E641420EF01E8A001BC333 /* Source */,
 				380F4EF20FC0B67A00B0BFD7 /* Unit Tests */,
 			);
 			name = "sequel-pro";
@@ -2764,6 +2807,7 @@
 			isa = PBXGroup;
 			children = (
 				961210D1302E7233009A9A2A /* SAGitHubReleaseTests.swift */,
+				50D3C3591A771C2300B5429C /* Other */,
 				1198F5B41174EDDE00670590 /* Database Actions */,
 				17DC886A126B378A00E9AAEC /* Category Additions */,
 				704B29F988D5B46E73D169FA /* SATypeAheadMatcherTests.swift */,
@@ -2823,6 +2867,7 @@
 		50D3C3591A771C2300B5429C /* Other */ = {
 			isa = PBXGroup;
 			children = (
+				1AB0688D24A355B500E2AAC2 /* fixtures */,
 				1A4152ED25AF530F00B17249 /* GeneralSwiftTests.swift */,
 				50D3C35B1A771C4C00B5429C /* SPParserUtilsTest.m */,
 				CAE8AEB5768B402AAF04C961 /* SAEditorTokensTests.swift */,
@@ -3033,6 +3078,7 @@
 		96D494B8249C07940092F335 /* SSH Helpers */ = {
 			isa = PBXGroup;
 			children = (
+				964908C4249A77CF0052FC4A /* ssh_config */,
 			);
 			name = "SSH Helpers";
 			sourceTree = "<group>";
@@ -3147,13 +3193,19 @@
 			buildConfigurationList = 380F4EDE0FC0B50600B0BFD7 /* Build configuration list for PBXNativeTarget "Unit Tests" */;
 			buildPhases = (
 				17E20DEF12D6602F007F75A6 /* Copy Frameworks */,
+				380F4ED50FC0B50500B0BFD7 /* Sources */,
+				17E20DFF12D6609E007F75A6 /* Frameworks */,
+				1AB068A724A355C200E2AAC2 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				518402D924A3FF4F004693B0 /* PBXTargetDependency */,
 			);
 			name = "Unit Tests";
 			packageProductDependencies = (
+				513C8CE02BBC4132001CCE3A /* OCMock */,
+				A19A2000000000000000E001 /* FMDB */,
 			);
 			productName = "Unit Tests";
 			productReference = 380F4ED90FC0B50500B0BFD7 /* Unit Tests.xctest */;
@@ -3163,6 +3215,8 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 58B9096A11C3A431000826E5 /* Build configuration list for PBXNativeTarget "xibLocalizationPostprocessor" */;
 			buildPhases = (
+				58B9095E11C3A42B000826E5 /* Sources */,
+				9D68E8A3FC5FD471945E3BA0 /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -3177,10 +3231,13 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 58CDB33F0FCE13E300F8ACA3 /* Build configuration list for PBXNativeTarget "SequelAceTunnelAssistant" */;
 			buildPhases = (
+				58CDB3330FCE13C900F8ACA3 /* Sources */,
+				58CDB3340FCE13C900F8ACA3 /* Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				17D41AB22171157B00B1888D /* PBXTargetDependency */,
 			);
 			name = SequelAceTunnelAssistant;
 			productName = TunnelPassphraseRequester;
@@ -3191,16 +3248,25 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = C05733C708A9546B00998B17 /* Build configuration list for PBXNativeTarget "Sequel Ace" */;
 			buildPhases = (
+				8D15AC300486D014006FF6A4 /* Sources */,
+				8D15AC330486D014006FF6A4 /* Frameworks */,
+				8D15AC2B0486D014006FF6A4 /* Resources */,
 				96B0A162249416B1007BB270 /* Copy SequelAceTunnelAssistant and sign */,
 				4DECC4940EC2B447008D359E /* Copy Frameworks */,
 				9691789224A562330012ED42 /* Copy Default Themes and Default Bundles */,
+				1A62C63425BE08F400DF903B /* ShellScript */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				58CDB34B0FCE144000F8ACA3 /* PBXTargetDependency */,
+				58B9097011C3A462000826E5 /* PBXTargetDependency */,
 			);
 			name = "Sequel Ace";
 			packageProductDependencies = (
+				51D9527525AE2B5300574BEB /* FMDB */,
+				51BC150025BE138700F1CDC9 /* SnapKit */,
+				1A89556E25D6C8880060CE72 /* Alamofire */,
 			);
 			productInstallPath = "$(HOME)/Applications";
 			productName = "sequel-pro";
@@ -3268,6 +3334,8 @@
 			targets = (
 				8D15AC270486D014006FF6A4 /* Sequel Ace */,
 				380F4ED80FC0B50500B0BFD7 /* Unit Tests */,
+				58CDB3350FCE13C900F8ACA3 /* SequelAceTunnelAssistant */,
+				58B9096011C3A42B000826E5 /* xibLocalizationPostprocessor */,
 			);
 		};
 /* End PBXProject section */
@@ -5081,6 +5149,10 @@
 		380F4EDE0FC0B50600B0BFD7 /* Build configuration list for PBXNativeTarget "Unit Tests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
+				380F4EDB0FC0B50600B0BFD7 /* Debug */,
+				380F4EDC0FC0B50600B0BFD7 /* Release */,
+				380F4EDD0FC0B50600B0BFD7 /* Distribution */,
+				96BC47C92500A84F003C8105 /* Beta */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -5088,6 +5160,10 @@
 		58B9096A11C3A431000826E5 /* Build configuration list for PBXNativeTarget "xibLocalizationPostprocessor" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
+				58B9096311C3A42C000826E5 /* Debug */,
+				58B9096411C3A42C000826E5 /* Release */,
+				58B9096511C3A42C000826E5 /* Distribution */,
+				96BC47CC2500A84F003C8105 /* Beta */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -5095,6 +5171,10 @@
 		58CDB33F0FCE13E300F8ACA3 /* Build configuration list for PBXNativeTarget "SequelAceTunnelAssistant" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
+				58CDB3380FCE13CB00F8ACA3 /* Debug */,
+				58CDB3390FCE13CB00F8ACA3 /* Release */,
+				58CDB33A0FCE13CB00F8ACA3 /* Distribution */,
+				96BC47CA2500A84F003C8105 /* Beta */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -5102,6 +5182,10 @@
 		C05733C708A9546B00998B17 /* Build configuration list for PBXNativeTarget "Sequel Ace" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
+				C05733C808A9546B00998B17 /* Debug */,
+				C05733C908A9546B00998B17 /* Release */,
+				588593F10F7AEB6900ED0E67 /* Distribution */,
+				96BC47C82500A84F003C8105 /* Beta */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -5109,6 +5193,10 @@
 		C05733CB08A9546B00998B17 /* Build configuration list for PBXProject "sequel-ace" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
+				C05733CC08A9546B00998B17 /* Debug */,
+				C05733CD08A9546B00998B17 /* Release */,
+				588593F00F7AEB6900ED0E67 /* Distribution */,
+				96BC47C72500A84F003C8105 /* Beta */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
