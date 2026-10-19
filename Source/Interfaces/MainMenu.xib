@@ -19,8 +19,8 @@
         </customObject>
         <menu title="MainMenu" systemMenu="main" id="29" userLabel="MainMenu">
             <items>
-                <menuItem title="Sequel Ace" id="56">
-                    <menu key="submenu" title="Sequel Ace" systemMenu="apple" id="57">
+                <menuItem title="DBManager" id="56">
+                    <menu key="submenu" title="DBManager" systemMenu="apple" id="57">
                         <items>
                                                         <menuItem isSeparatorItem="YES" id="199">
                                 <modifierMask key="keyEquivalentModifierMask" command="YES"/>
@@ -42,7 +42,7 @@
                             <menuItem isSeparatorItem="YES" id="144">
                                 <modifierMask key="keyEquivalentModifierMask" command="YES"/>
                             </menuItem>
-                            <menuItem title="Hide Sequel Ace" keyEquivalent="h" id="134">
+                            <menuItem title="Hide DBManager" keyEquivalent="h" id="134">
                                 <connections>
                                     <action selector="hide:" target="-2" id="152"/>
                                 </connections>
@@ -61,7 +61,7 @@
                             <menuItem isSeparatorItem="YES" id="149">
                                 <modifierMask key="keyEquivalentModifierMask" command="YES"/>
                             </menuItem>
-                            <menuItem title="Quit Sequel Ace" keyEquivalent="q" id="136">
+                            <menuItem title="Quit DBManager" keyEquivalent="q" id="136">
                                 <connections>
                                     <action selector="terminate:" target="-1" id="810"/>
                                 </connections>
@@ -906,7 +906,7 @@
                 <menuItem title="Help" tag="8" id="103">
                     <menu key="submenu" title="Help" id="106">
                         <items>
-                            <menuItem title="Sequel Ace Help" hidden="YES" keyEquivalent="?" id="111">
+                            <menuItem title="DBManager Help" hidden="YES" keyEquivalent="?" id="111">
                                 <connections>
                                     <action selector="showHelp:" target="-1" id="122"/>
                                 </connections>
