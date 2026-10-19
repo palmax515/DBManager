@@ -13,7 +13,7 @@ import SwiftUI
     @objc convenience init(delegate: NSWindowDelegate?) {
         let hostingController = NSHostingController(rootView: SAAboutView())
         let window = NSWindow(contentViewController: hostingController)
-        window.title = "About Sequel Ace"
+        window.title = "About DBManager"
         window.styleMask = [.titled, .closable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
