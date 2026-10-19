@@ -196,6 +196,7 @@
 			<string>DBManager URL scheme</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
+				<string>dbmanager</string>
 				<string>sequelace</string>
 			</array>
 		</dict>
@@ -210,10 +211,6 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>20116</string>
-	<key>FIREBASE_ANALYTICS_COLLECTION_ENABLED</key>
-	<false/>
-	<key>FirebaseCrashlyticsCollectionEnabled</key>
-	<false/>
 	<key>GOOGLE_ANALYTICS_DEFAULT_ALLOW_AD_PERSONALIZATION_SIGNALS</key>
 	<false/>
 	<key>GOOGLE_ANALYTICS_DEFAULT_ALLOW_AD_STORAGE</key>
