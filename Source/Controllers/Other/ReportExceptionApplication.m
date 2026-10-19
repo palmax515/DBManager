@@ -10,8 +10,6 @@
 #import "SPAppController.h"
 @import Cocoa;
 
-@import FirebaseCrashlytics;
-
 @interface ReportExceptionApplication : NSApplication
 @end
 
@@ -28,22 +26,6 @@
         [killTask launch];
         [killTask waitUntilExit];
     });
-
-    // forward exception to Firebase Crashlytics
-    NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
-    @try {
-        if ([prefs boolForKey:SPSaveApplicationUsageAnalytics]) {
-            FIRExceptionModel *model = [FIRExceptionModel exceptionModelWithName:exception.name reason:exception.reason];
-            NSMutableArray<FIRStackFrame *> *frames = [NSMutableArray array];
-            for (NSNumber *address in exception.callStackReturnAddresses) {
-                [frames addObject:[FIRStackFrame stackFrameWithAddress:[address unsignedIntegerValue]]];
-            }
-            model.stackTrace = frames;
-            [[FIRCrashlytics crashlytics] recordExceptionModel:model];
-        }
-    } @catch (NSException * e) {
-        SPLog(@"Firebase Crashlytics Exception on Crash Report: %@", e);
-    }
 
     [super reportException:exception];
 }
