@@ -193,7 +193,7 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>Sequel Ace URL scheme</string>
+			<string>DBManager URL scheme</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>sequelace</string>

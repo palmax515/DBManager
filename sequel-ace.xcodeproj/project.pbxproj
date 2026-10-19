@@ -335,8 +335,6 @@
 		51AC6E6F3047F8AB00BCE2B9 /* SASSHTunnelPromptCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51AC6E6D3047F8AB00BCE2B9 /* SASSHTunnelPromptCoordinator.swift */; };
 		51AC6E743047F8C400BCE2B9 /* SASSHTunnelPromptCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51AC6E733047F8C400BCE2B9 /* SASSHTunnelPromptCoordinatorTests.swift */; };
 		51B09FC92F7677AA003BAFFF /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 51B09FC82F7677AA003BAFFF /* GoogleService-Info.plist */; };
-		51B09FD12F7677EB003BAFFF /* FirebaseAnalyticsCore in Frameworks */ = {isa = PBXBuildFile; productRef = 51B09FD02F7677EB003BAFFF /* FirebaseAnalyticsCore */; };
-		51B09FD32F7677EB003BAFFF /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 51B09FD22F7677EB003BAFFF /* FirebaseCrashlytics */; };
 		51B09FD72F767A3E003BAFFF /* SAConnectionInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B09FD62F767A3E003BAFFF /* SAConnectionInfo.swift */; };
 		51B09FD82F767A3F003BAFFF /* SAConnectionInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B09FD62F767A3E003BAFFF /* SAConnectionInfo.swift */; };
 		51B09FDD2F767A4C003BAFFF /* SAConnectionDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B09FDC2F767A4C003BAFFF /* SAConnectionDelegate.swift */; };
@@ -583,7 +581,6 @@
 		9EF08F69717C447F6B39B6D0 /* SAKeychainStoreCharacterizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01F157CAED03AA780923D362 /* SAKeychainStoreCharacterizationTests.swift */; };
 		9FAB1CF8AFD6A6D9D3F89171 /* SAAsyncResultBox.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEFB3FFA0EBB99359D3ECA23 /* SAAsyncResultBox.swift */; };
 		A57A61739BA9FEC6706473D6 /* SPAppController+MCP.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC51026DDFB4980A84A78F1 /* SPAppController+MCP.swift */; };
-		A69CC1B9E445E5FCF1484A09 /* SAAnalyticsConsentPolicy+Firebase.swift in Sources */ = {isa = PBXBuildFile; fileRef = F001AB41C248FB0C94ECB906 /* SAAnalyticsConsentPolicy+Firebase.swift */; };
 		A946E44AA14C458182205CFF /* CompletionTokens.plist in Resources */ = {isa = PBXBuildFile; fileRef = BC962D651144EACA006170BD /* CompletionTokens.plist */; };
 		AA000001000000000000001B /* SAAboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000001A /* SAAboutView.swift */; };
 		AC8C26C73E9B45F473139262 /* SASSHTunnelAskpass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51AC3B8F3047623E00BCE2B9 /* SASSHTunnelAskpass.swift */; };
@@ -1664,7 +1661,6 @@
 		EC963BC8D32F5BF63842F4AF /* SATypeAheadMatcher.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SATypeAheadMatcher.swift; sourceTree = "<group>"; };
 		ED6AC28123000BCB7363F94A /* SAKeyboardShortcutTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SAKeyboardShortcutTests.swift; sourceTree = "<group>"; };
 		EF5C9FD78A565D5260B38E55 /* SAUserManagerPrivilegeNormalizer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SAUserManagerPrivilegeNormalizer.swift; sourceTree = "<group>"; };
-		F001AB41C248FB0C94ECB906 /* SAAnalyticsConsentPolicy+Firebase.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "SAAnalyticsConsentPolicy+Firebase.swift"; sourceTree = "<group>"; };
 		F2C579DE7A5CF887DB114A54 /* SATableReloadRetryPolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SATableReloadRetryPolicy.swift; sourceTree = "<group>"; };
 		F3A4B8C191E14E7094C9A101 /* AWSCredentialsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AWSCredentialsTests.swift; sourceTree = "<group>"; };
 		6F264B9BB856B1CA409006B4 /* SAConnectionAttemptSequenceTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SAConnectionAttemptSequenceTests.swift; sourceTree = "<group>"; };
@@ -1733,7 +1729,6 @@
 				963DA1C72CACC71000B5A544 /* QuickLookUI.framework in Frameworks */,
 				1A89556F25D6C8880060CE72 /* Alamofire in Frameworks */,
 				503CDBB21ACDC204004F8A2F /* Quartz.framework in Frameworks */,
-				51B09FD12F7677EB003BAFFF /* FirebaseAnalyticsCore in Frameworks */,
 				265446DF24A1616900376B48 /* libz.tbd in Frameworks */,
 				17AED4161888BD67008E380F /* Security.framework in Frameworks */,
 				51BC150125BE138700F1CDC9 /* SnapKit in Frameworks */,
@@ -1743,7 +1738,6 @@
 				96B0A1512493DF3E007BB270 /* ShortcutRecorder.framework in Frameworks */,
 				9651262224926F1200E65B53 /* QueryKit.framework in Frameworks */,
 				179ECECA11F265FC009C6A40 /* libbz2.dylib in Frameworks */,
-				51B09FD32F7677EB003BAFFF /* FirebaseCrashlytics in Frameworks */,
 				9651262424926F1600E65B53 /* SPMySQL.framework in Frameworks */,
 				51D9527625AE2B5300574BEB /* FMDB in Frameworks */,
 			);
@@ -2879,7 +2873,6 @@
 				2617B1FEDA3776DCA242666C /* SAMarkedTextInputState.swift */,
 				1AA5B97BE9E063395AB12888 /* SAAnalyticsConsentPolicy.swift */,
 				D10000022F8C000600C4C14A /* SAAppearancePreference.swift */,
-				F001AB41C248FB0C94ECB906 /* SAAnalyticsConsentPolicy+Firebase.swift */,
 				3EDCC01965F2A0E35B9547D8 /* SATypeAheadSelectionLoad.swift */,
 			);
 			path = Utility;
@@ -3288,8 +3281,6 @@
 				51D9527525AE2B5300574BEB /* FMDB */,
 				51BC150025BE138700F1CDC9 /* SnapKit */,
 				1A89556E25D6C8880060CE72 /* Alamofire */,
-				51B09FD02F7677EB003BAFFF /* FirebaseAnalyticsCore */,
-				51B09FD22F7677EB003BAFFF /* FirebaseCrashlytics */,
 			);
 			productInstallPath = "$(HOME)/Applications";
 			productName = "sequel-pro";
@@ -4182,7 +4173,6 @@
 				D95E363059FDC83627417D74 /* SAQueryFavoriteStore.swift in Sources */,
 				8E9430236D26BB3D6FFCD99E /* SAQueryFavoriteSaveWindowController.swift in Sources */,
 				14F0CC5AC96DE9CCC0213237 /* SAUserManagerPrivilegeNormalizer.swift in Sources */,
-				A69CC1B9E445E5FCF1484A09 /* SAAnalyticsConsentPolicy+Firebase.swift in Sources */,
 				6C5D707FD9947026F90C868A /* SASSHTunnelFailure.swift in Sources */,
 				FE96153A16ECBA48C12BCA09 /* SAFieldEditorCommitPolicy.swift in Sources */,
 				5DB3C7CF73628DF0DA31F02E /* SATableListCellRenderer.swift in Sources */,
@@ -4277,7 +4267,7 @@
 					"-framework",
 					Cocoa,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.sequel-ace.sequel-ace.tests";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.palmax515.dbmanager.tests";
 				PRODUCT_NAME = "Unit Tests";
 				SKIP_INSTALL = YES;
 				SWIFT_OBJC_INTERFACE_HEADER_NAME = "$(PROJECT_NAME)-Swift.h";
@@ -4316,7 +4306,7 @@
 					"-framework",
 					Cocoa,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.sequel-ace.sequel-ace.tests";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.palmax515.dbmanager.tests";
 				PRODUCT_NAME = "Unit Tests";
 				SKIP_INSTALL = YES;
 				SWIFT_OBJC_INTERFACE_HEADER_NAME = "$(PROJECT_NAME)-Swift.h";
@@ -4355,7 +4345,7 @@
 					"-framework",
 					Foundation,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.sequel-ace.sequel-ace.tests";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.palmax515.dbmanager.tests";
 				PRODUCT_NAME = "Unit Tests";
 				SKIP_INSTALL = YES;
 				SWIFT_OBJC_INTERFACE_HEADER_NAME = "$(PROJECT_NAME)-Swift.h";
@@ -4477,9 +4467,9 @@
 				LOCALIZED_STRING_SWIFTUI_SUPPORT = NO;
 				MACOSX_DEPLOYMENT_TARGET = 13.5;
 				OTHER_LDFLAGS = "-ObjC";
-				PRODUCT_BUNDLE_IDENTIFIER = "com.sequel-ace.sequel-ace";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.palmax515.dbmanager";
 				PRODUCT_MODULE_NAME = Sequel_Ace;
-				PRODUCT_NAME = "Sequel Ace";
+				PRODUCT_NAME = "DBManager";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SEPARATE_STRIP = NO;
 				STRIP_PNG_TEXT = YES;
@@ -4604,7 +4594,7 @@
 					"-framework",
 					AppKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.sequel-ace.sequel-ace.SequelAceTunnelAssistant";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.palmax515.dbmanager.SequelAceTunnelAssistant";
 				PRODUCT_NAME = SequelAceTunnelAssistant;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
@@ -4640,7 +4630,7 @@
 					"-framework",
 					AppKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.sequel-ace.sequel-ace.SequelAceTunnelAssistant";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.palmax515.dbmanager.SequelAceTunnelAssistant";
 				PRODUCT_NAME = SequelAceTunnelAssistant;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
@@ -4676,7 +4666,7 @@
 					"-framework",
 					AppKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.sequel-ace.sequel-ace.SequelAceTunnelAssistant";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.palmax515.dbmanager.SequelAceTunnelAssistant";
 				PRODUCT_NAME = SequelAceTunnelAssistant;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
@@ -4800,7 +4790,7 @@
 				LOCALIZED_STRING_SWIFTUI_SUPPORT = NO;
 				MACOSX_DEPLOYMENT_TARGET = 13.5;
 				OTHER_LDFLAGS = "-ObjC";
-				PRODUCT_BUNDLE_IDENTIFIER = "com.sequel-ace.sequel-ace-beta";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.palmax515.dbmanager-beta";
 				PRODUCT_MODULE_NAME = Sequel_Ace;
 				PRODUCT_NAME = "Sequel Ace Beta";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -4844,7 +4834,7 @@
 					"-framework",
 					Foundation,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.sequel-ace.sequel-ace.tests";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.palmax515.dbmanager.tests";
 				PRODUCT_NAME = "Unit Tests";
 				SKIP_INSTALL = YES;
 				SWIFT_OBJC_INTERFACE_HEADER_NAME = "$(PROJECT_NAME)-Swift.h";
@@ -4879,7 +4869,7 @@
 					"-framework",
 					AppKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.sequel-ace.sequel-ace.SequelAceTunnelAssistant";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.palmax515.dbmanager.SequelAceTunnelAssistant";
 				PRODUCT_NAME = SequelAceTunnelAssistant;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
@@ -4955,9 +4945,9 @@
 				LOCALIZED_STRING_SWIFTUI_SUPPORT = NO;
 				MACOSX_DEPLOYMENT_TARGET = 13.5;
 				OTHER_LDFLAGS = "-ObjC";
-				PRODUCT_BUNDLE_IDENTIFIER = "com.sequel-ace.sequel-ace";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.palmax515.dbmanager";
 				PRODUCT_MODULE_NAME = Sequel_Ace;
-				PRODUCT_NAME = "Sequel Ace";
+				PRODUCT_NAME = "DBManager";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SEPARATE_STRIP = NO;
 				STRIP_PNG_TEXT = YES;
@@ -5009,9 +4999,9 @@
 				LOCALIZED_STRING_SWIFTUI_SUPPORT = NO;
 				MACOSX_DEPLOYMENT_TARGET = 13.5;
 				OTHER_LDFLAGS = "-ObjC";
-				PRODUCT_BUNDLE_IDENTIFIER = "com.sequel-ace.sequel-ace";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.palmax515.dbmanager";
 				PRODUCT_MODULE_NAME = Sequel_Ace;
-				PRODUCT_NAME = "Sequel Ace";
+				PRODUCT_NAME = "DBManager";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SEPARATE_STRIP = NO;
 				STRIP_PNG_TEXT = YES;
@@ -5258,14 +5248,6 @@
 				kind = branch;
 			};
 		};
-		51B09FCD2F7677EB003BAFFF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 12.11.0;
-			};
-		};
 		51BC14FF25BE138700F1CDC9 /* XCRemoteSwiftPackageReference "SnapKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/SnapKit/SnapKit";
@@ -5294,16 +5276,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 513C8CDF2BBC4132001CCE3A /* XCRemoteSwiftPackageReference "ocmock" */;
 			productName = OCMock;
-		};
-		51B09FD02F7677EB003BAFFF /* FirebaseAnalyticsCore */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 51B09FCD2F7677EB003BAFFF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseAnalyticsCore;
-		};
-		51B09FD22F7677EB003BAFFF /* FirebaseCrashlytics */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 51B09FCD2F7677EB003BAFFF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseCrashlytics;
 		};
 		51BC150025BE138700F1CDC9 /* SnapKit */ = {
 			isa = XCSwiftPackageProductDependency;

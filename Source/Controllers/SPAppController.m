@@ -138,9 +138,6 @@ static const double SPDelayBeforeCheckingForNewReleases = 10;
  */
 - (void)defaultsChanged:(NSNotification *)notification {
     [self switchAppearance];
-    SPMainQSync(^{
-        [SAAnalyticsConsentPolicy applyAnalyticsConsent];
-    });
 }
 
 /**
@@ -194,8 +191,7 @@ static const double SPDelayBeforeCheckingForNewReleases = 10;
  */
 - (void)applicationDidFinishLaunching:(NSNotification *)notification {
 
-    [SAAnalyticsConsentPolicy requestConsentIfNeeded];
-    [SAAnalyticsConsentPolicy applyAnalyticsConsent];
+    // Analytics removed in DBManager fork.
 
     NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
 

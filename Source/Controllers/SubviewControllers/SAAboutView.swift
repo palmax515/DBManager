@@ -13,7 +13,7 @@ struct SAAboutView: View {
 
     private let appName: String = {
         let bundle = Bundle.main
-        return "Sequel Ace" + (bundle.isSnapshotBuild ? " Beta" : "")
+        return "DBManager" + (bundle.isSnapshotBuild ? " Beta" : "")
     }()
 
     private let versionText: String = {

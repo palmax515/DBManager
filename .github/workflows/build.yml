@@ -36,7 +36,7 @@ jobs:
 
       - name: Package app
         run: |
-          APP="build/DerivedData/Build/Products/Release/Sequel Ace.app"
+          APP="build/DerivedData/Build/Products/Release/DBManager.app"
           test -d "$APP"
           rm -rf build/Release/DBManager.app
           mkdir -p build/Release
