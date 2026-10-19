@@ -168,7 +168,7 @@
 "The view '%@' was created through the character set '%@'; Rename Database can only recreate views created through UTF-8. Nothing was changed." = "Вид '%1$@' был создан с помощью набора символов '%2$@'; Переименованная база данных может только пересоздать представления, созданные через UTF-8. Ничего не изменилось.";
 
 /* rename database refused because views in other databases read from the source's tables or views, which the rename cannot repoint; %1$@ source database, %2$@ lists the views as `db`.`view` */
-"Views in other databases read from '%@' (%@) and would stop working once it is renamed. Nothing was changed." = "Views in other databases read from '%1$@' (%2$@) and would stop working once it is renamed. Nothing was changed.";
+"Views in other databases read from '%@' (%@) and would stop working once it is renamed. Nothing was changed." = "Представления в других базах данных читают из «%1$@» (%2$@) и перестанут работать после переименования. Ничего не изменено.";
 
 /* error text when multiple custom query failed */
 "[ERROR in query %ld] %@\n" = "[ОШИБКА в запросе %1$ld] %2$@\n";
@@ -503,7 +503,7 @@
 "`%@`.* for %@" = "`%1$@`.* for %2$@";
 
 /* privilege operation all databases scope */
-"all databases" = "all databases";
+"all databases" = "все базы данных";
 
 /* privilege operation error message */
 "Could not %@ %@ on %@ for %@.\n\nMySQL said: %@" = "Could not %1$@ %2$@ on %3$@ for %4$@.\n\nMySQL said: %5$@";
@@ -512,7 +512,7 @@
 "database \"%@\"" = "database \"%@\"";
 
 /* fallback privilege operation description */
-"change" = "change";
+"change" = "изменить";
 
 /* rename database: a scheduled event, by name; listed among the objects that block the rename */
 "event '%@'" = "event '%@'";
@@ -524,10 +524,10 @@
 "grant" = "grant";
 
 /* mariadb show create routine grant error explanation */
-"\n\nThis MariaDB server supports SHOW CREATE ROUTINE, but the connected account was not allowed to grant or revoke it. This can happen after upgrading MariaDB before the new privilege has been added back to an administrative account. Check SHOW GRANTS FOR CURRENT_USER(), then grant SHOW CREATE ROUTINE WITH GRANT OPTION to the account or repair the server's grant tables." = "\n\nThis MariaDB server supports SHOW CREATE ROUTINE, but the connected account was not allowed to grant or revoke it. This can happen after upgrading MariaDB before the new privilege has been added back to an administrative account. Check SHOW GRANTS FOR CURRENT_USER(), then grant SHOW CREATE ROUTINE WITH GRANT OPTION to the account or repair the server's grant tables.";
+"\n\nThis MariaDB server supports SHOW CREATE ROUTINE, but the connected account was not allowed to grant or revoke it. This can happen after upgrading MariaDB before the new privilege has been added back to an administrative account. Check SHOW GRANTS FOR CURRENT_USER(), then grant SHOW CREATE ROUTINE WITH GRANT OPTION to the account or repair the server's grant tables." = "\n\nЭтот сервер MariaDB поддерживает SHOW CREATE ROUTINE, но подключённой учётной записи не разрешено выдавать или отзывать это право. Это может происходить после обновления MariaDB до того, как новое право было возвращено административной учётной записи. Проверьте SHOW GRANTS FOR CURRENT_USER(), затем выдайте SHOW CREATE ROUTINE WITH GRANT OPTION этой учётной записи или восстановите таблицы привилегий сервера.";
 
 /* allow nonexistent definer privilege checkbox title */
-"Nonexistent Definer" = "Nonexistent Definer";
+"Nonexistent Definer" = "Несуществующий DEFINER";
 
 /* rename database: why a view was not recreated */
 "its definition returned by SHOW CREATE VIEW has no VIEW clause." = "его определение, возвращаемое SHOW CREATE VIEW не имеет оговорки VIEW.";
@@ -599,7 +599,7 @@
 "the connection was re-established while the views were recreated, so they may still point at the old database." = "соединение было восстановлено при восстановлении взглядов, поэтому они могут по-прежнему указываться в старой базе данных.";
 
 /* fallback privilege operation account description */
-"the selected account" = "the selected account";
+"the selected account" = "выбранная учётная запись";
 
 /* rename database: why the source could not be inspected; shown after 'Reading the objects of the database … failed:' */
 "this account cannot list the database's libraries completely (it needs global SELECT or SHOW_ROUTINE)." = "эта учетная запись не может полностью вывести список библиотек базы данных (она требует глобального SELECT или SHOW_ROUTINE).";
@@ -614,7 +614,7 @@
 "this account cannot list the views of other databases completely (it needs global SELECT, and SHOW VIEW where information_schema.VIEW_TABLE_USAGE is missing)." = "этот аккаунт не может полностью перечислить представления других баз данных (нужен глобальный SELECT и SHOW VIEW, где отсутствует information_schema.VIEW_TABLE_USAGE).";
 
 /* fallback privileges operation description */
-"the selected privileges" = "the selected privileges";
+"the selected privileges" = "выбранные привилегии";
 
 /* mysql resource limits unsupported message */
 "Resource Limits are not supported for your version of MySQL. Any Resouce Limits you specified have been discarded and not saved. MySQL said: %@" = "Ограничения ресурсов не поддерживаются для вашей версии MySQL. Любые ограничения ресурсов, которые вы указали, были отклонены и не сохранились. MySQL сообщил: %@";
@@ -722,7 +722,7 @@
 "Automatically check for updates" = "Автоматически проверять обновления";
 
 /* analytics consent dialog message */
-"Allow Sequel Ace to send an app installation identifier, app version, macOS and device details, approximate region, usage analytics, and crash and diagnostic reports to Google Firebase?\n\nThe developers use this data to understand feature adoption and diagnose problems. It is not used for advertising or to track you across other companies' apps or websites. Collection starts only if you choose Share Analytics, and you can change your choice anytime in Preferences." = "Allow Sequel Ace to send an app installation identifier, app version, macOS and device details, approximate region, usage analytics, and crash and diagnostic reports to Google Firebase?\n\nThe developers use this data to understand feature adoption and diagnose problems. It is not used for advertising or to track you across other companies' apps or websites. Collection starts only if you choose Share Analytics, and you can change your choice anytime in Preferences.";
+"Allow Sequel Ace to send an app installation identifier, app version, macOS and device details, approximate region, usage analytics, and crash and diagnostic reports to Google Firebase?\n\nThe developers use this data to understand feature adoption and diagnose problems. It is not used for advertising or to track you across other companies' apps or websites. Collection starts only if you choose Share Analytics, and you can change your choice anytime in Preferences." = "Разрешить Sequel Ace отправлять идентификатор установки приложения, версию приложения, сведения о macOS и устройстве, приблизительный регион, аналитику использования и отчёты о сбоях и диагностике в Google Firebase?\n\nРазработчики используют эти данные для понимания использования функций и диагностики проблем. Они не используются для рекламы или отслеживания вас в приложениях и на сайтах других компаний. Сбор данных начинается только если вы выберете «Поделиться аналитикой», и вы можете изменить свой выбор в любой момент в настройках.";
 
 /* analytics consent deny button */
 "Don't Share" = "Не делиться";
@@ -1300,7 +1300,7 @@
 "Disconnected from %@" = "Отключено от %@";
 
 /* do update operator tooltip */
-"Do UPDATE where field contents match" = "Do UPDATE where field contents match";
+"Do UPDATE where field contents match" = "Выполнить UPDATE, где содержимое поля совпадает";
 
 /* message of panel asking for confirmation for loading large text into the query editor */
 "Do you really want to load a SQL file with %@ of data into the Query Editor?" = "Вы действительно хотите загрузить SQL файл с %@ данными в Редактор запросов?";
@@ -1554,10 +1554,10 @@
 "Execution stopped!\n" = "Выполнение остановлено!\n";
 
 /* menu item to run EXPLAIN on the current query (issue #2291) */
-"Explain Current Query" = "Explain Current Query";
+"Explain Current Query" = "Объяснить текущий запрос";
 
 /* status text when the user runs EXPLAIN against a non-SELECT/WITH or multi-statement query */
-"EXPLAIN is only supported for a single SELECT or WITH statement." = "EXPLAIN is only supported for a single SELECT or WITH statement.";
+"EXPLAIN is only supported for a single SELECT or WITH statement." = "EXPLAIN поддерживается только для одного оператора SELECT или WITH.";
 
 /* export selected favorites menu item */
 "Export Selected..." = "Экспортировать выбранное...";
@@ -1716,7 +1716,7 @@
 "Generation Time" = "Время формирования";
 
 /* connection view : get server public key checkbox */
-"Get Public Key" = "Get Public Key";
+"Get Public Key" = "Получить открытый ключ";
 
 /* Content Filter Manager : Filter Entry List: 'Global' Header
  Query Favorites : List : Section Heading : global query favorites */
@@ -2004,7 +2004,7 @@
 "MySQL connecting..." = "Подключение к MySQL...";
 
 /* mysql 8.4 invalid auto increment title */
-"AUTO_INCREMENT is unavailable" = "AUTO_INCREMENT is unavailable";
+"AUTO_INCREMENT is unavailable" = "AUTO_INCREMENT недоступен";
 
 /* mysql error message */
 "MySQL Error" = "Ошибка MySQL";
@@ -2022,10 +2022,10 @@
 "MySQL Help – Categories" = "MySQL справка – Категории";
 
 /* mysql 8.4 invalid auto increment message */
-"MySQL 8.4 and newer only support AUTO_INCREMENT on integer columns. The %@ column type cannot use AUTO_INCREMENT on this server." = "MySQL 8.4 and newer only support AUTO_INCREMENT on integer columns. The %@ column type cannot use AUTO_INCREMENT on this server.";
+"MySQL 8.4 and newer only support AUTO_INCREMENT on integer columns. The %@ column type cannot use AUTO_INCREMENT on this server." = "MySQL 8.4 и новее поддерживают AUTO_INCREMENT только для целочисленных колонок. Тип колонки %@ не может использовать AUTO_INCREMENT на этом сервере.";
 
 /* mysql 8.4 invalid relation message */
-"MySQL 8.4 and newer require a foreign key to reference a full unique or primary key. Add a single-column unique key to %@.%@ or choose another referenced column." = "MySQL 8.4 and newer require a foreign key to reference a full unique or primary key. Add a single-column unique key to %@.%@ or choose another referenced column.";
+"MySQL 8.4 and newer require a foreign key to reference a full unique or primary key. Add a single-column unique key to %@.%@ or choose another referenced column." = "MySQL 8.4 и новее требуют, чтобы внешний ключ ссылался на полный уникальный или первичный ключ. Добавьте одноколоночный уникальный ключ к %@.%@ или выберите другую ссылочную колонку.";
 
 /* mysql said message */
 "MySQL said:" = "MySQL сообщил:";
@@ -2364,7 +2364,7 @@
 "Remote Error" = "Внешняя ошибка";
 
 /* mysql 8.4 invalid relation title */
-"Referenced column needs a unique key" = "Referenced column needs a unique key";
+"Referenced column needs a unique key" = "Для ссылочной колонки требуется уникальный ключ";
 
 /* Bundle Editor : Remove-Bundle: remove button
  remove button */
@@ -2449,7 +2449,7 @@
 "Represents an ordered set of coordinates where each consecutive pair of two points is connected by a straight line." = "Представляет собой упорядоченный набор координат, где каждая последовательная пара двух точек соединяется прямой линией.";
 
 /* connection view : get server public key help */
-"Request the server RSA public key for caching_sha2_password over non-SSL connections." = "Request the server RSA public key for caching_sha2_password over non-SSL connections.";
+"Request the server RSA public key for caching_sha2_password over non-SSL connections." = "Запросить открытый ключ RSA сервера для caching_sha2_password по не-SSL соединению.";
 
 /* required placeholder string */
 "required" = "требуется";
@@ -2599,7 +2599,7 @@
 "selected items" = "выбранные элементы";
 
 /* invalid auto increment fallback field type */
-"selected" = "selected";
+"selected" = "выбрано";
 
 /* Bundle Editor : Scope=Data-Table : Input source dropdown: 'selected rows as comma-separated' item */
 "Selected Rows (CSV)" = "Выбранные строки (CSV)";
@@ -3523,19 +3523,19 @@
 "You have stale secure bookmarks:\n\n%@\n\nWould you like to re-request access now?" = "Обнаружено, что доступ к некоторым защищенным закладкам просрочен:\n\n%@\n\nХотите повторно запросить доступ к ним сейчас?";
 
 /* single stale bookmark alert message */
-"Sequel Ace found 1 stale secure bookmark. You can continue launching now, or open Files preferences to refresh or revoke it." = "Sequel Ace found 1 stale secure bookmark. You can continue launching now, or open Files preferences to refresh or revoke it.";
+"Sequel Ace found 1 stale secure bookmark. You can continue launching now, or open Files preferences to refresh or revoke it." = "Sequel Ace обнаружил 1 устаревшую защищённую закладку. Вы можете продолжить запуск сейчас или открыть настройки «Файлы», чтобы обновить или отозвать её.";
 
 /* multiple stale bookmarks alert message */
-"Sequel Ace found %d stale secure bookmarks. You can continue launching now, or open Files preferences to refresh or revoke them." = "Sequel Ace found %d stale secure bookmarks. You can continue launching now, or open Files preferences to refresh or revoke them.";
+"Sequel Ace found %d stale secure bookmarks. You can continue launching now, or open Files preferences to refresh or revoke them." = "DBManager обнаружил %d устаревших защищённых закладок. Вы можете продолжить запуск сейчас или открыть настройки «Файлы», чтобы обновить или отозвать их.";
 
 /* Question to user to see if they would like to request access to missing bookmarks */
 "You have missing secure bookmarks:\n\n%@\n\nWould you like to request access now?" = "Обнаружено отсутствие некоторых защищенных закладок:\n\n%@\n\nХотите запросить доступ к ним сейчас?";
 
 /* single missing bookmark alert message */
-"Sequel Ace found 1 missing secure bookmark. You can request access now, or cancel and update it later in Files preferences." = "Sequel Ace found 1 missing secure bookmark. You can request access now, or cancel and update it later in Files preferences.";
+"Sequel Ace found 1 missing secure bookmark. You can request access now, or cancel and update it later in Files preferences." = "Sequel Ace обнаружил 1 отсутствующую защищённую закладку. Вы можете запросить доступ сейчас или отменить и обновить её позже в настройках «Файлы».";
 
 /* multiple missing bookmarks alert message */
-"Sequel Ace found %d missing secure bookmarks. You can request access now, or cancel and update them later in Files preferences." = "Sequel Ace found %d missing secure bookmarks. You can request access now, or cancel and update them later in Files preferences.";
+"Sequel Ace found %d missing secure bookmarks. You can request access now, or cancel and update them later in Files preferences." = "DBManager обнаружил %d отсутствующих защищённых закладок. Вы можете запросить доступ сейчас или отменить и обновить их позже в настройках «Файлы».";
 
 /* known hosts advance menu item title */
 "Use known hosts from ssh config (ADVANCED)" = "Использовать известные хосты из SSH настроек (ПРОДВИНУТЫЙ РЕЖИМ)";
@@ -3544,10 +3544,10 @@
 "Yes" = "Да";
 
 /* open files preferences button */
-"Open Files Preferences" = "Open Files Preferences";
+"Open Files Preferences" = "Открыть настройки «Файлы»";
 
 /* request access button */
-"Request Access" = "Request Access";
+"Request Access" = "Запросить доступ";
 
 /* Shown to remind users of their stale bookmarks */
 "A reminder of your stale secure bookmarks:<br /><br />%@<br />" = "Напоминание об устаревших защищенных закладках:<br /><br />%@<br />";
@@ -3691,127 +3691,127 @@
 "The variable in the ?name= query parameter could not be matched with any of your favorites." = "Переменная в параметре ?name= запроса не соответствует ни одному из ваших избранных.";
 
 /* Vault connection: invalid host or port supplied */
-"Invalid Vault host or port." = "Invalid Vault host or port.";
+"Invalid Vault host or port." = "Неверный хост или порт Vault.";
 
 /* Vault connection: HTTP error from Vault API (%d = HTTP status code) */
 "Vault returned HTTP %d." = "Vault returned HTTP %d.";
 
 /* Vault connection: response body could not be parsed (%@ = detail) */
-"Vault response parse error: %@" = "Vault response parse error: %@";
+"Vault response parse error: %@" = "Ошибка разбора ответа Vault: %@";
 
 /* Vault OIDC login: user cancelled the browser flow */
-"Vault login was cancelled." = "Vault login was cancelled.";
+"Vault login was cancelled." = "Вход в Vault отменён.";
 
 /* Vault OIDC login: could not open a local callback port */
-"Could not bind a local port for the Vault OIDC callback." = "Could not bind a local port for the Vault OIDC callback.";
+"Could not bind a local port for the Vault OIDC callback." = "Не удалось привязать локальный порт для обратного вызова OIDC Vault.";
 
 /* Vault OIDC login: browser callback did not arrive within the timeout */
-"Vault OIDC login timed out. Please try again." = "Vault OIDC login timed out. Please try again.";
+"Vault OIDC login timed out. Please try again." = "Время ожидания входа OIDC Vault истекло. Попробуйте ещё раз.";
 
 /* Vault OIDC login: callback query string was malformed (%@ = detail) */
-"Unexpected Vault OIDC callback: %@" = "Unexpected Vault OIDC callback: %@";
+"Unexpected Vault OIDC callback: %@" = "Неожиданный обратный вызов OIDC Vault: %@";
 
 /* Vault auth manager: Vault host or credentials path not configured */
-"Vault host or credentials path is missing." = "Vault host or credentials path is missing.";
+"Vault host or credentials path is missing." = "Отсутствует хост или путь учётных данных Vault.";
 
 /* Vault auth manager: OIDC login flow failed */
-"Vault OIDC login failed." = "Vault OIDC login failed.";
+"Vault OIDC login failed." = "Вход OIDC Vault не удался.";
 
 /* Vault auth manager: credentials endpoint returned an error */
-"Failed to generate credentials from Vault." = "Failed to generate credentials from Vault.";
+"Failed to generate credentials from Vault." = "Не удалось сформировать учётные данные из Vault.";
 
 /* Vault auth manager: credentials endpoint returned empty username/password */
-"Vault returned empty credentials." = "Vault returned empty credentials.";
+"Vault returned empty credentials." = "Vault вернул пустые учётные данные.";
 
 /* Vault connect-time validation: Vault host field is empty */
-"A Vault host is required to connect." = "A Vault host is required to connect.";
+"A Vault host is required to connect." = "Для подключения требуется хост Vault.";
 
 /* Vault connect-time validation: credentials path field is empty */
-"A Vault credentials path is required to connect." = "A Vault credentials path is required to connect.";
+"A Vault credentials path is required to connect." = "Для подключения требуется путь учётных данных Vault.";
 
 /* Vault connect-time validation: DB host field is empty */
-"A database host is required to connect." = "A database host is required to connect.";
+"A database host is required to connect." = "Для подключения требуется хост базы данных.";
 
 /* Vault connection: error sheet title when credential generation fails */
-"Vault Authentication Failed" = "Vault Authentication Failed";
+"Vault Authentication Failed" = "Ошибка аутентификации Vault";
 
 /* Vault save-favorite validation: DB host field is empty */
-"Please provide a database host to save a Vault favorite." = "Please provide a database host to save a Vault favorite.";
+"Please provide a database host to save a Vault favorite." = "Укажите хост базы данных для сохранения избранного Vault.";
 
 /* Vault save-favorite validation: Vault host field is empty */
-"A Vault host is required to save a Vault favorite." = "A Vault host is required to save a Vault favorite.";
+"A Vault host is required to save a Vault favorite." = "Для сохранения избранного Vault требуется хост Vault.";
 
 /* Vault save-favorite validation: credentials path field is empty */
-"A Vault credentials path is required to save a Vault favorite." = "A Vault credentials path is required to save a Vault favorite.";
+"A Vault credentials path is required to save a Vault favorite." = "Для сохранения избранного Vault требуется путь учётных данных Vault.";
 
 /* Cell context menu filter submenu title */
-"Filter by Selected Value" = "Filter by Selected Value";
+"Filter by Selected Value" = "Фильтровать по выбранному значению";
 
 /* MCP pref: enable checkbox */
-"Enable MCP Server (localhost only)" = "Enable MCP Server (localhost only)";
+"Enable MCP Server (localhost only)" = "Включить MCP-сервер (только localhost)";
 
 /* MCP pref: port label */
-"Port:" = "Port:";
+"Port:" = "Порт:";
 
 /* MCP pref: port hint */
-"Default: 8765. Any unprivileged port (1024–65535) may be used." = "Default: 8765. Any unprivileged port (1024–65535) may be used.";
+"Default: 8765. Any unprivileged port (1024–65535) may be used." = "По умолчанию: 8765. Можно использовать любой непривилегированный порт (1024–65535).";
 
 /* MCP pref: choose button */
-"Choose…" = "Choose…";
+"Choose…" = "Выбрать…";
 
 /* MCP preference pane name */
-"MCP Server" = "MCP Server";
+"MCP Server" = "MCP-сервер";
 
 /* MCP preference pane tooltip */
-"MCP Server Preferences" = "MCP Server Preferences";
+"MCP Server Preferences" = "Настройки MCP-сервера";
 
 /* MCP pref: invalid port alert */
-"Invalid Port" = "Invalid Port";
+"Invalid Port" = "Неверный порт";
 
 /* MCP pref: port range */
 "Port must be between %ld and %ld." = "Port must be between %ld and %ld.";
 
 /* MCP pref: open panel prompt */
-"Choose" = "Choose";
+"Choose" = "Выбрать";
 
 /* MCP pref: open panel message */
-"Choose the default folder for MCP query exports." = "Choose the default folder for MCP query exports.";
+"Choose the default folder for MCP query exports." = "Выберите папку по умолчанию для экспорта запросов MCP.";
 
 /* MCP pref: status disabled */
-"MCP server is disabled." = "MCP server is disabled.";
+"MCP server is disabled." = "MCP-сервер отключён.";
 
 /* MCP pref: status running */
-"MCP server is running on http://127.0.0.1:%ld/mcp" = "MCP server is running on http://127.0.0.1:%ld/mcp";
+"MCP server is running on http://127.0.0.1:%ld/mcp" = "MCP-сервер работает на http://127.0.0.1:%ld/mcp";
 
 /* MCP pref: status stopped */
-"MCP server is not running." = "MCP server is not running.";
+"MCP server is not running." = "MCP-сервер не запущен.";
 
 /* MCP start error title */
-"MCP Server Error" = "MCP Server Error";
+"MCP Server Error" = "Ошибка MCP-сервера";
 
 /* MCP start error message */
-"The MCP server could not start on port %ld: %@\n\nYou can change the port in Preferences > MCP Server." = "The MCP server could not start on port %ld: %@\n\nYou can change the port in Preferences > MCP Server.";
+"The MCP server could not start on port %ld: %@\n\nYou can change the port in Preferences > MCP Server." = "MCP-сервер не смог запуститься на порту %ld: %@\n\nВы можете изменить порт в настройках > MCP-сервер.";
 
 /* MCP pref: read-only checkbox */
-"Read-only mode (reject queries that modify data)" = "Read-only mode (reject queries that modify data)";
+"Read-only mode (reject queries that modify data)" = "Режим только для чтения (отклонять запросы, изменяющие данные)";
 
 /* MCP pref: server row label */
-"Server:" = "Server:";
+"Server:" = "Сервер:";
 
 /* MCP pref: export row label */
-"Export folder:" = "Export folder:";
+"Export folder:" = "Папка экспорта:";
 
 /* MCP pref: endpoint row label */
-"Endpoint:" = "Endpoint:";
+"Endpoint:" = "Точка доступа:";
 
 /* MCP pref: copy endpoint button */
-"Copy" = "Copy";
+"Copy" = "Копировать";
 
 /* MCP pref: endpoint hint */
 "Add this URL to any MCP client (Claude, Cursor, Cline, VS Code). This is the Streamable HTTP endpoint; SSE-only clients should use /sse instead of /mcp." = "Добавьте этот URL в любой MCP клиент (Claude, Cursor, Cline, VS Code). This is the Streamable HTTP endpoint; SSE-only clients should use /sse instead of /mcp.";
 
 /* AWS console sign-in (aws login) error: profile is missing login_session configuration */
-"The profile is not configured for AWS console sign-in" = "The profile is not configured for AWS console sign-in";
+"The profile is not configured for AWS console sign-in" = "Профиль не настроен для входа в консоль AWS";
 
 /* AWS console sign-in (aws login) error: no cached session on disk */
 "No cached AWS console sign-in session was found." = "Не найден сеанс входа в AWS консоли.";
@@ -3820,10 +3820,10 @@
 "Your AWS console sign-in session has ended." = "Ваша сессия входа в консоль AWS завершена.";
 
 /* AWS console sign-in (aws login) error: cached session file could not be parsed */
-"The cached AWS console sign-in session could not be read" = "The cached AWS console sign-in session could not be read";
+"The cached AWS console sign-in session could not be read" = "Не удалось прочитать кэшированную сессию входа в консоль AWS";
 
 /* AWS IAM Identity Center (aws sso login) error: profile is missing SSO configuration */
-"The profile is not configured for AWS IAM Identity Center" = "The profile is not configured for AWS IAM Identity Center";
+"The profile is not configured for AWS IAM Identity Center" = "Профиль не настроен для AWS IAM Identity Center";
 
 /* AWS IAM Identity Center (aws sso login) error: no cached token on disk */
 "No cached AWS SSO session was found." = "Кэшированная сессия AWS SSO не найдена.";
@@ -3832,43 +3832,43 @@
 "The cached AWS SSO token has expired." = "Кэшированный AWS SSO токен истек.";
 
 /* AWS IAM Identity Center (aws sso login) error: network request failed */
-"Network request to AWS IAM Identity Center failed" = "Network request to AWS IAM Identity Center failed";
+"Network request to AWS IAM Identity Center failed" = "Сетевой запрос к AWS IAM Identity Center не удался";
 
 /* AWS IAM Identity Center (aws sso login) error: response could not be parsed */
-"Invalid response from AWS IAM Identity Center" = "Invalid response from AWS IAM Identity Center";
+"Invalid response from AWS IAM Identity Center" = "Неверный ответ от AWS IAM Identity Center";
 
 /* AWS IAM Identity Center (aws sso login) error: portal denied the request */
-"Access denied by AWS IAM Identity Center" = "Access denied by AWS IAM Identity Center";
+"Access denied by AWS IAM Identity Center" = "Доступ запрещён AWS IAM Identity Center";
 
 /* AWS IAM Identity Center (aws sso login) error: portal request timed out */
-"AWS IAM Identity Center request timed out" = "AWS IAM Identity Center request timed out";
+"AWS IAM Identity Center request timed out" = "Время ожидания запроса к AWS IAM Identity Center истекло";
 
 /* Import prompt */
-"\nWould you like to import from clipboard or choose a file?" = "\nWould you like to import from clipboard or choose a file?";
+"\nWould you like to import from clipboard or choose a file?" = "\nИмпортировать из буфера обмена или выбрать файл?";
 
 /* show optimized field type fallback estimate message */
-"%@\n\nEstimated from current column values because PROCEDURE ANALYSE() is unavailable on this server version." = "%@\n\nEstimated from current column values because PROCEDURE ANALYSE() is unavailable on this server version.";
+"%@\n\nEstimated from current column values because PROCEDURE ANALYSE() is unavailable on this server version." = "%@\n\nОценка произведена по текущим значениям колонки, так как PROCEDURE ANALYSE() недоступна на этой версии сервера.";
 
 /* Multiple duplicates found */
 "%ld duplicate connections found. Choose an action for each:" = "%ld duplicate connections found. Choose an action for each:";
 
 /* 1 duplicate found */
-"1 duplicate connection found. Choose an action for each:" = "1 duplicate connection found. Choose an action for each:";
+"1 duplicate connection found. Choose an action for each:" = "Найдено 1 дублирующееся подключение. Выберите действие для каждого:";
 
 /* Duplicate connection prompt */
 "A connection with the same details already exists:\n\n%@\n\nChoose an action:" = "A connection with the same details already exists:\n\n%@\n\nChoose an action:";
 
 /* STS error */
-"Access denied by AWS STS" = "Access denied by AWS STS";
+"Access denied by AWS STS" = "Доступ запрещён AWS STS";
 
 /* Action header */
-"Action" = "Action";
+"Action" = "Действие";
 
 /* PHP serialized editor add child button */
-"Add Child" = "Add Child";
+"Add Child" = "Добавить дочерний элемент";
 
 /* Allowed query parameters are */
-"Allowed query parameters are" = "Allowed query parameters are";
+"Allowed query parameters are" = "Разрешённые параметры запроса:";
 
 /* show optimized field type fallback query error message */
 "An error occurred while estimating an optimized field type.\n\nMySQL said: %@" = "An error occurred while estimating an optimized field type.\n\nMySQL said: %@";
@@ -3877,118 +3877,118 @@
 "An error occurred while fetching the optimized field type.\n\nMySQL said: %@" = "An error occurred while fetching the optimized field type.\n\nMySQL said: %@";
 
 /* PHP serialized editor apply button */
-"Apply to Field" = "Apply to Field";
+"Apply to Field" = "Применить к полю";
 
 /* PHP serialized editor array type */
-"Array" = "Array";
+"Array" = "Массив";
 
 /* MFA authenticate button */
-"Authenticate" = "Authenticate";
+"Authenticate" = "Аутентифицировать";
 
 /* AWS authorization failed alert title */
-"Authorization Failed" = "Authorization Failed";
+"Authorization Failed" = "Ошибка авторизации";
 
 /* AWS directory authorize button */
-"Authorize" = "Authorize";
+"Authorize" = "Авторизовать";
 
 /* AWS authorization required save message */
-"Authorize access to your ~/.aws directory before saving an AWS IAM favorite." = "Authorize access to your ~/.aws directory before saving an AWS IAM favorite.";
+"Authorize access to your ~/.aws directory before saving an AWS IAM favorite." = "Авторизуйте доступ к каталогу ~/.aws перед сохранением избранного AWS IAM.";
 
 /* AWS authorization required message */
-"Authorize access to your ~/.aws directory before testing or connecting with an AWS IAM favorite." = "Authorize access to your ~/.aws directory before testing or connecting with an AWS IAM favorite.";
+"Authorize access to your ~/.aws directory before testing or connecting with an AWS IAM favorite." = "Авторизуйте доступ к каталогу ~/.aws перед проверкой или подключением к избранному AWS IAM.";
 
 /* AWS authorization required title */
-"AWS Authorization Required" = "AWS Authorization Required";
+"AWS Authorization Required" = "Требуется авторизация AWS";
 
 /* IAM auth error */
-"AWS credentials are invalid" = "AWS credentials are invalid";
+"AWS credentials are invalid" = "Учётные данные AWS недействительны";
 
 /* AWS credentials error */
-"AWS credentials are missing required fields (access key ID or secret access key)" = "AWS credentials are missing required fields (access key ID or secret access key)";
+"AWS credentials are missing required fields (access key ID or secret access key)" = "В учётных данных AWS отсутствуют обязательные поля (идентификатор ключа доступа или секретный ключ доступа)";
 
 /* IAM auth error */
-"AWS credentials not found" = "AWS credentials not found";
+"AWS credentials not found" = "Учётные данные AWS не найдены";
 
 /* AWS IAM auth failed title */
-"AWS IAM Authentication Failed" = "AWS IAM Authentication Failed";
+"AWS IAM Authentication Failed" = "Ошибка аутентификации AWS IAM";
 
 /* MFA dialog title */
-"AWS MFA Authentication Required" = "AWS MFA Authentication Required";
+"AWS MFA Authentication Required" = "Требуется MFA-аутентификация AWS";
 
 /* AWS credentials error */
-"AWS profile not found" = "AWS profile not found";
+"AWS profile not found" = "Профиль AWS не найден";
 
 /* PHP serialized editor boolean type */
-"Boolean" = "Boolean";
+"Boolean" = "Логический";
 
 /* PHP serialized editor boolean validation error */
-"Boolean values must be true/false or 1/0." = "Boolean values must be true/false or 1/0.";
+"Boolean values must be true/false or 1/0." = "Логические значения должны быть true/false или 1/0.";
 
 /* SSH config file error alert title */
-"Cannot Access SSH Config File" = "Cannot Access SSH Config File";
+"Cannot Access SSH Config File" = "Нет доступа к файлу конфигурации SSH";
 
 /* PHP serialized editor reference add validation error */
-"Cannot add entries while PHP references are present." = "Cannot add entries while PHP references are present.";
+"Cannot add entries while PHP references are present." = "Нельзя добавлять записи, пока присутствуют ссылки PHP.";
 
 /* PHP serialized editor reference structure validation error */
-"Cannot change serialized structure while PHP references are present." = "Cannot change serialized structure while PHP references are present.";
+"Cannot change serialized structure while PHP references are present." = "Нельзя изменить сериализованную структуру, пока присутствуют ссылки PHP.";
 
 /* PHP serialized editor reference delete validation error */
-"Cannot delete entries while PHP references are present." = "Cannot delete entries while PHP references are present.";
+"Cannot delete entries while PHP references are present." = "Нельзя удалять записи, пока присутствуют ссылки PHP.";
 
 /* Choose file button */
-"Choose File..." = "Choose File...";
+"Choose File..." = "Выбрать файл…";
 
 /* Standalone connection window title */
-"Connect to Server" = "Connect to Server";
+"Connect to Server" = "Подключиться к серверу";
 
 /* message when database selection fails */
 "Connected but unable to select database '%@'." = "Connected but unable to select database '%@'.";
 
 /* Connection header */
-"Connection" = "Connection";
+"Connection" = "Подключение";
 
 /* Connection string copied without password */
-"Connection string copied to clipboard (password not included)" = "Connection string copied to clipboard (password not included)";
+"Connection string copied to clipboard (password not included)" = "Строка подключения скопирована в буфер обмена (пароль не включён)";
 
 /* Connection string with password copied */
-"Connection string with password copied to clipboard" = "Connection string with password copied to clipboard";
+"Connection string with password copied to clipboard" = "Строка подключения с паролем скопирована в буфер обмена";
 
 /* Copy connection string */
-"Copy Connection String" = "Copy Connection String";
+"Copy Connection String" = "Копировать строку подключения";
 
 /* Copy with password button */
-"Copy With Password" = "Copy With Password";
+"Copy With Password" = "Копировать с паролем";
 
 /* Copy without password button */
-"Copy Without Password" = "Copy Without Password";
+"Copy Without Password" = "Копировать без пароля";
 
 /* message shown when local network privacy settings deep link fails */
-"Couldn't open the Local Network privacy settings automatically.\n\nIn macOS, open System Settings > Privacy & Security > Local Network and enable Sequel Ace." = "Couldn't open the Local Network privacy settings automatically.\n\nIn macOS, open System Settings > Privacy & Security > Local Network and enable Sequel Ace.";
+"Couldn't open the Local Network privacy settings automatically.\n\nIn macOS, open System Settings > Privacy & Security > Local Network and enable Sequel Ace." = "Не удалось автоматически открыть настройки конфиденциальности локальной сети.\n\nВ macOS откройте «Системные настройки» > «Конфиденциальность и безопасность» > «Локальная сеть» и включите Sequel Ace.";
 
 /* Create new action */
-"Create New" = "Create New";
+"Create New" = "Создать новое";
 
 /* content tab : rule filter : drop zone prompt */
-"Drop a value here, or click to add a filter" = "Drop a value here, or click to add a filter";
+"Drop a value here, or click to add a filter" = "Перетащите значение сюда или нажмите, чтобы добавить фильтр";
 
 /* Duplicate connection found */
-"Duplicate Connection Found" = "Duplicate Connection Found";
+"Duplicate Connection Found" = "Найдено дублирующееся подключение";
 
 /* Duplicate connections found */
-"Duplicate Connections Found" = "Duplicate Connections Found";
+"Duplicate Connections Found" = "Найдены дублирующиеся подключения";
 
 /* PHP serialized data editor menu item */
-"Edit PHP Serialized Data as Tree" = "Edit PHP Serialized Data as Tree";
+"Edit PHP Serialized Data as Tree" = "Редактировать сериализованные данные PHP как дерево";
 
 /* AWS IAM empty token error */
-"Empty authentication token returned" = "Empty authentication token returned";
+"Empty authentication token returned" = "Возвращён пустой токен аутентификации";
 
 /* Error parsing connection string */
-"Error parsing connection string" = "Error parsing connection string";
+"Error parsing connection string" = "Ошибка разбора строки подключения";
 
 /* estimating optimized field type task status message */
-"Estimating optimized field type..." = "Estimating optimized field type...";
+"Estimating optimized field type..." = "Оценка оптимизированного типа поля…";
 
 /* PHP serialized editor expected byte error */
 "Expected '%c'." = "Expected '%c'.";
@@ -3997,265 +3997,265 @@
 "Expected delimiter '%c'." = "Expected delimiter '%c'.";
 
 /* IAM auth error */
-"Failed to access keychain" = "Failed to access keychain";
+"Failed to access keychain" = "Не удалось получить доступ к связке ключей";
 
 /* AWS credentials error */
-"Failed to access the AWS credentials directory" = "Failed to access the AWS credentials directory";
+"Failed to access the AWS credentials directory" = "Не удалось получить доступ к каталогу учётных данных AWS";
 
 /* IAM auth error */
-"Failed to assume IAM role" = "Failed to assume IAM role";
+"Failed to assume IAM role" = "Не удалось принять роль IAM";
 
 /* AWS authorization failed alert message */
-"Failed to create a secure bookmark for the AWS directory. Please try again." = "Failed to create a secure bookmark for the AWS directory. Please try again.";
+"Failed to create a secure bookmark for the AWS directory. Please try again." = "Не удалось создать защищённую закладку для каталога AWS. Попробуйте ещё раз.";
 
 /* IAM auth error */
-"Failed to generate IAM authentication token" = "Failed to generate IAM authentication token";
+"Failed to generate IAM authentication token" = "Не удалось сгенерировать токен аутентификации IAM";
 
 /* AWS credentials error */
-"Failed to read AWS credentials file" = "Failed to read AWS credentials file";
+"Failed to read AWS credentials file" = "Не удалось прочитать файл учётных данных AWS";
 
 /* PHP serialized editor float type */
-"Float" = "Float";
+"Float" = "С плавающей точкой";
 
 /* PHP serialized editor float validation error */
-"Float values cannot be empty." = "Float values cannot be empty.";
+"Float values cannot be empty." = "Значения с плавающей точкой не могут быть пустыми.";
 
 /* PHP serialized editor float validation error */
-"Float values must be a valid number, INF, -INF, or NAN." = "Float values must be a valid number, INF, -INF, or NAN.";
+"Float values must be a valid number, INF, -INF, or NAN." = "Значения с плавающей точкой должны быть корректным числом, INF, -INF или NAN.";
 
 /* Found connection string label */
-"Found connection string in clipboard:" = "Found connection string in clipboard:";
+"Found connection string in clipboard:" = "В буфере обмена найдена строка подключения:";
 
 /* Import connection string prompt */
 "Found connection string in clipboard:\n\n%@\n\nWould you like to import from clipboard or choose a file?" = "Found connection string in clipboard:\n\n%@\n\nWould you like to import from clipboard or choose a file?";
 
 /* placeholder when AWS IAM auth is enabled */
-"Generated from AWS IAM profile" = "Generated from AWS IAM profile";
+"Generated from AWS IAM profile" = "Сформировано из профиля AWS IAM";
 
 /* SSH config file error alert - Go to network settings button */
-"Go to Network Settings" = "Go to Network Settings";
+"Go to Network Settings" = "Открыть сетевые настройки";
 
 /* Fallback password hide button title */
-"Hide" = "Hide";
+"Hide" = "Скрыть";
 
 /* Hide password tooltip */
-"Hide password" = "Hide password";
+"Hide password" = "Скрыть пароль";
 
 /* Import from clipboard button */
-"Import from Clipboard" = "Import from Clipboard";
+"Import from Clipboard" = "Импортировать из буфера обмена";
 
 /* Import from clipboard or file */
-"Import from Clipboard or File?" = "Import from Clipboard or File?";
+"Import from Clipboard or File?" = "Импортировать из буфера обмена или файла?";
 
 /* PHP serialized editor integer type */
-"Integer" = "Integer";
+"Integer" = "Целое";
 
 /* PHP serialized editor integer validation error */
-"Integer values may only contain digits and an optional leading minus sign." = "Integer values may only contain digits and an optional leading minus sign.";
+"Integer values may only contain digits and an optional leading minus sign." = "Целочисленные значения могут содержать только цифры и необязательный знак минуса в начале.";
 
 /* AWS credentials error */
-"Invalid AWS credentials" = "Invalid AWS credentials";
+"Invalid AWS credentials" = "Неверные учётные данные AWS";
 
 /* Invalid AWS directory alert title */
-"Invalid AWS Directory" = "Invalid AWS Directory";
+"Invalid AWS Directory" = "Неверный каталог AWS";
 
 /* Invalid connection string */
-"Invalid Connection String" = "Invalid Connection String";
+"Invalid Connection String" = "Неверная строка подключения";
 
 /* Invalid MFA code title */
-"Invalid MFA Code" = "Invalid MFA Code";
+"Invalid MFA Code" = "Неверный код MFA";
 
 /* RDS IAM auth error */
-"Invalid parameters for IAM authentication" = "Invalid parameters for IAM authentication";
+"Invalid parameters for IAM authentication" = "Неверные параметры для аутентификации IAM";
 
 /* STS error */
-"Invalid parameters for STS request" = "Invalid parameters for STS request";
+"Invalid parameters for STS request" = "Неверные параметры для запроса STS";
 
 /* PHP serialized editor invalid boolean error */
-"Invalid PHP boolean value." = "Invalid PHP boolean value.";
+"Invalid PHP boolean value." = "Неверное логическое значение PHP.";
 
 /* PHP serialized editor invalid float error */
-"Invalid PHP float value." = "Invalid PHP float value.";
+"Invalid PHP float value." = "Неверное значение с плавающей точкой PHP.";
 
 /* PHP serialized editor invalid integer error */
-"Invalid PHP integer value." = "Invalid PHP integer value.";
+"Invalid PHP integer value." = "Неверное целочисленное значение PHP.";
 
 /* Invalid query parameters given */
-"Invalid query parameters given" = "Invalid query parameters given";
+"Invalid query parameters given" = "Переданы неверные параметры запроса";
 
 /* STS error */
-"Invalid response from STS" = "Invalid response from STS";
+"Invalid response from STS" = "Неверный ответ от STS";
 
 /* PHP serialized editor invalid count error */
-"Invalid serialized length or count." = "Invalid serialized length or count.";
+"Invalid serialized length or count." = "Неверная длина или количество сериализованных данных.";
 
 /* charset fallback warning title */
-"Limited Character Set Metadata" = "Limited Character Set Metadata";
+"Limited Character Set Metadata" = "Метаданные ограниченного набора символов";
 
 /* title for local network privacy alert */
-"Local Network Access is Required" = "Local Network Access is Required";
+"Local Network Access is Required" = "Требуется доступ к локальной сети";
 
 /* IAM auth error */
-"MFA authentication was cancelled" = "MFA authentication was cancelled";
+"MFA authentication was cancelled" = "MFA-аутентификация отменена";
 
 /* STS error */
-"MFA token code is required" = "MFA token code is required";
+"MFA token code is required" = "Требуется код MFA-токена";
 
 /* Redacted connection string fallback */
-"mysql://[connection string with password hidden]" = "mysql://[connection string with password hidden]";
+"mysql://[connection string with password hidden]" = "mysql://[строка подключения с скрытым паролем]";
 
 /* STS error */
-"Network request failed" = "Network request failed";
+"Network request failed" = "Сетевой запрос не удался";
 
 /* Menu item for standalone connection window */
-"New Connection Window" = "New Connection Window";
+"New Connection Window" = "Новое окно подключения";
 
 /* show optimized field type fallback unsupported field type */
 "No fallback estimate is currently available for %@ columns." = "No fallback estimate is currently available for %@ columns.";
 
 /* show optimized field type fallback no values */
-"No non-NULL values were found in this column, so no fallback estimate could be produced." = "No non-NULL values were found in this column, so no fallback estimate could be produced.";
+"No non-NULL values were found in this column, so no fallback estimate could be produced." = "В этой колонке не найдено ненулевых значений, поэтому резервная оценка не может быть произведена.";
 
 /* show optimized field type fallback failed because field metadata is unavailable */
-"No optimized field type could be estimated for this column." = "No optimized field type could be estimated for this column.";
+"No optimized field type could be estimated for this column." = "Не удалось оценить оптимизированный тип поля для этой колонки.";
 
 /* PHP serialized editor empty input error */
-"No serialized data was provided." = "No serialized data was provided.";
+"No serialized data was provided." = "Сериализованные данные не переданы.";
 
 /* PHP serialized editor null type */
 "Null" = "Null";
 
 /* open apple release notes button */
-"Open Apple Release Notes" = "Open Apple Release Notes";
+"Open Apple Release Notes" = "Открыть примечания к выпуску Apple";
 
 /* button title to open local network privacy settings */
-"Open Local Network Settings" = "Open Local Network Settings";
+"Open Local Network Settings" = "Открыть настройки локальной сети";
 
 /* connection view : name field placeholder */
-"Optional Name" = "Optional Name";
+"Optional Name" = "Необязательное имя";
 
 /* PHP serialized editor invalid key error */
-"PHP array keys must be integers or strings." = "PHP array keys must be integers or strings.";
+"PHP array keys must be integers or strings." = "Ключи массива PHP должны быть целыми числами или строками.";
 
 /* PHP serialized editor invalid property error */
-"PHP object property names must be integers or strings." = "PHP object property names must be integers or strings.";
+"PHP object property names must be integers or strings." = "Имена свойств объекта PHP должны быть целыми числами или строками.";
 
 /* PHP serialized editor sheet title */
-"PHP Serialized Data" = "PHP Serialized Data";
+"PHP Serialized Data" = "Сериализованные данные PHP";
 
 /* PHP serialized editor maximum nesting depth error */
-"PHP serialized data exceeds the maximum supported nesting depth." = "PHP serialized data exceeds the maximum supported nesting depth.";
+"PHP serialized data exceeds the maximum supported nesting depth." = "Сериализованные данные PHP превышают максимально поддерживаемую глубину вложенности.";
 
 /* connection authentication failure message */
-"Please check your username and password and try again." = "Please check your username and password and try again.";
+"Please check your username and password and try again." = "Проверьте имя пользователя и пароль и попробуйте снова.";
 
 /* Invalid MFA code message */
-"Please enter a valid 6-digit MFA code." = "Please enter a valid 6-digit MFA code.";
+"Please enter a valid 6-digit MFA code." = "Введите корректный 6-значный код MFA.";
 
 /* Invalid AWS directory alert message */
-"Please select the .aws directory in your home folder (usually ~/.aws). This directory should contain your AWS credentials and/or config files." = "Please select the .aws directory in your home folder (usually ~/.aws). This directory should contain your AWS credentials and/or config files.";
+"Please select the .aws directory in your home folder (usually ~/.aws). This directory should contain your AWS credentials and/or config files." = "Выберите каталог .aws в вашей домашней папке (обычно ~/.aws). В этом каталоге должны находиться ваши файлы учётных данных и/или конфигурации AWS.";
 
 /* MFA dialog message */
 "Profile: %@\nMFA Device: %@\n\nEnter your 6-digit MFA code from your authenticator app:" = "Profile: %@\nMFA Device: %@\n\nEnter your 6-digit MFA code from your authenticator app:";
 
 /* removed macos runtime warning title */
-"Removed macOS Runtime" = "Removed macOS Runtime";
+"Removed macOS Runtime" = "Удалённая среда выполнения macOS";
 
 /* SSH config file error alert - Reset to default button */
-"Reset to Default & Continue" = "Reset to Default & Continue";
+"Reset to Default & Continue" = "Сбросить по умолчанию и продолжить";
 
 /* PHP serialized editor container inspector text */
-"Select a scalar value to edit it. Arrays and objects can be expanded in the tree." = "Select a scalar value to edit it. Arrays and objects can be expanded in the tree.";
+"Select a scalar value to edit it. Arrays and objects can be expanded in the tree." = "Выберите скалярное значение для редактирования. Массивы и объекты можно разворачивать в дереве.";
 
 /* AWS directory selection message */
-"Select your .aws directory to enable AWS IAM authentication" = "Select your .aws directory to enable AWS IAM authentication";
+"Select your .aws directory to enable AWS IAM authentication" = "Выберите каталог .aws для включения аутентификации AWS IAM";
 
 /* informative text for local network privacy alert (direct) */
-"Sequel Ace could not reach the database host on your local network. On macOS 15 (Sequoia) and later, this often means Local Network access is disabled for Sequel Ace.\n\nOpen System Settings > Privacy & Security > Local Network and enable Sequel Ace, then try connecting again." = "Sequel Ace could not reach the database host on your local network. On macOS 15 (Sequoia) and later, this often means Local Network access is disabled for Sequel Ace.\n\nOpen System Settings > Privacy & Security > Local Network and enable Sequel Ace, then try connecting again.";
+"Sequel Ace could not reach the database host on your local network. On macOS 15 (Sequoia) and later, this often means Local Network access is disabled for Sequel Ace.\n\nOpen System Settings > Privacy & Security > Local Network and enable Sequel Ace, then try connecting again." = "DBManager не смог достичь хоста базы данных в вашей локальной сети. В macOS 15 (Sequoia) и новее это часто означает, что доступ к локальной сети отключён для DBManager.\n\nОткройте «Системные настройки» > «Конфиденциальность и безопасность» > «Локальная сеть» и включите DBManager, затем попробуйте подключиться снова.";
 
 /* informative text for local network privacy alert (ssh) */
-"Sequel Ace could not reach the SSH host on your local network. On macOS 15 (Sequoia) and later, this often means Local Network access is disabled for Sequel Ace.\n\nOpen System Settings > Privacy & Security > Local Network and enable Sequel Ace, then try connecting again." = "Sequel Ace could not reach the SSH host on your local network. On macOS 15 (Sequoia) and later, this often means Local Network access is disabled for Sequel Ace.\n\nOpen System Settings > Privacy & Security > Local Network and enable Sequel Ace, then try connecting again.";
+"Sequel Ace could not reach the SSH host on your local network. On macOS 15 (Sequoia) and later, this often means Local Network access is disabled for Sequel Ace.\n\nOpen System Settings > Privacy & Security > Local Network and enable Sequel Ace, then try connecting again." = "DBManager не смог достичь SSH-хоста в вашей локальной сети. В macOS 15 (Sequoia) и новее это часто означает, что доступ к локальной сети отключён для DBManager.\n\nОткройте «Системные настройки» > «Конфиденциальность и безопасность» > «Локальная сеть» и включите DBManager, затем попробуйте подключиться снова.";
 
 /* SSH config file error alert message */
-"Sequel Ace does not have permission to read the configured SSH config file at '%@'.\n\nThis might be due to Sandbox restrictions. You can configure a different SSH Config File in the Network tab of Preferences or correct access to the exiting file in the Files tab of Preferences, or you can reset the path to the Sequel Ace default." = "Sequel Ace does not have permission to read the configured SSH config file at '%@'.\n\nThis might be due to Sandbox restrictions. You can configure a different SSH Config File in the Network tab of Preferences or correct access to the exiting file in the Files tab of Preferences, or you can reset the path to the Sequel Ace default.";
+"Sequel Ace does not have permission to read the configured SSH config file at '%@'.\n\nThis might be due to Sandbox restrictions. You can configure a different SSH Config File in the Network tab of Preferences or correct access to the exiting file in the Files tab of Preferences, or you can reset the path to the Sequel Ace default." = "Этот пакет попытался запустить «%@», но эта среда выполнения недоступна в данной версии macOS.\n\nApple устарела и удалила встроенные среды выполнения скриптов из обновлений macOS.\n\nИсходные материалы:\n• %@\n• %@\n\nОбновите пакет для использования доступной среды выполнения или команды.";
 
 /* PHP serialized editor input encoding error */
-"Serialized data cannot be encoded using the field encoding." = "Serialized data cannot be encoded using the field encoding.";
+"Serialized data cannot be encoded using the field encoding." = "Сериализованные данные не могут быть закодированы с использованием кодировки поля.";
 
 /* PHP serialized editor output encoding error */
-"Serialized data contains characters that cannot be encoded using the field encoding." = "Serialized data contains characters that cannot be encoded using the field encoding.";
+"Serialized data contains characters that cannot be encoded using the field encoding." = "Сериализованные данные содержат символы, которые не могут быть закодированы с использованием кодировки поля.";
 
 /* PHP serialized editor count overflow error */
-"Serialized length or count is too large." = "Serialized length or count is too large.";
+"Serialized length or count is too large." = "Длина или количество сериализованных данных слишком велики.";
 
 /* PHP serialized editor string decoding error */
-"Serialized string could not be decoded as text." = "Serialized string could not be decoded as text.";
+"Serialized string could not be decoded as text." = "Сериализованная строка не может быть декодирована как текст.";
 
 /* Fallback password reveal button title */
-"Show" = "Show";
+"Show" = "Показать";
 
 /* Show password checkbox */
-"Show password" = "Show password";
+"Show password" = "Показать пароль";
 
 /* Skip action */
-"Skip" = "Skip";
+"Skip" = "Пропустить";
 
 /* PHP serialized editor string type */
-"String" = "String";
+"String" = "Строка";
 
 /* PHP serialized editor string length error */
-"String length exceeds available serialized data." = "String length exceeds available serialized data.";
+"String length exceeds available serialized data." = "Длина строки превышает доступные сериализованные данные.";
 
 /* STS error */
-"STS request timed out" = "STS request timed out";
+"STS request timed out" = "Время ожидания запроса STS истекло";
 
 /* The connection string is not valid */
-"The connection string is not valid." = "The connection string is not valid.";
+"The connection string is not valid." = "Строка подключения недействительна.";
 
 /* PHP serialized editor invalid tooltip */
-"The current field does not contain valid PHP serialized data." = "The current field does not contain valid PHP serialized data.";
+"The current field does not contain valid PHP serialized data." = "Текущее поле не содержит корректных сериализованных данных PHP.";
 
 /* charset fallback warning message */
-"The server did not provide character set metadata. Sequel Ace will continue using a fallback UTF-8 compatible character set list." = "The server did not provide character set metadata. Sequel Ace will continue using a fallback UTF-8 compatible character set list.";
+"The server did not provide character set metadata. Sequel Ace will continue using a fallback UTF-8 compatible character set list." = "Сервер не предоставил метаданные набора символов. DBManager продолжит использовать резервный список совместимых с UTF-8 наборов символов.";
 
 /* removed macos runtime warning message */
-"This Bundle attempted to run “%@”, but that runtime is not available on this macOS version.\n\nApple deprecated and removed built-in scripting runtimes from macOS updates.\n\nSource materials:\n• %@\n• %@\n\nPlease update the Bundle to use an available runtime or command." = "This Bundle attempted to run “%@”, but that runtime is not available on this macOS version.\n\nApple deprecated and removed built-in scripting runtimes from macOS updates.\n\nSource materials:\n• %@\n• %@\n\nPlease update the Bundle to use an available runtime or command.";
+"This Bundle attempted to run “%@”, but that runtime is not available on this macOS version.\n\nApple deprecated and removed built-in scripting runtimes from macOS updates.\n\nSource materials:\n• %@\n• %@\n\nPlease update the Bundle to use an available runtime or command." = "Этот пакет попытался запустить «%@», но эта среда выполнения недоступна в данной версии macOS.\n\nApple устарела и удалила встроенные среды выполнения скриптов из обновлений macOS.\n\nИсходные материалы:\n• %@\n• %@\n\nОбновите пакет для использования доступной среды выполнения или команды.";
 
 /* connection failed title */
-"Unable to connect" = "Unable to connect";
+"Unable to connect" = "Не удалось подключиться";
 
 /* Unable to get database collations for given encoding */
-"Unable to get database collations for given encoding" = "Unable to get database collations for given encoding";
+"Unable to get database collations for given encoding" = "Не удалось получить сопоставления базы данных для заданной кодировки";
 
 /* title when local network privacy settings deep link fails */
-"Unable to Open System Settings" = "Unable to Open System Settings";
+"Unable to Open System Settings" = "Не удалось открыть системные настройки";
 
 /* PHP serialized editor parse error */
-"Unable to parse PHP serialized data." = "Unable to parse PHP serialized data.";
+"Unable to parse PHP serialized data." = "Не удалось разобрать сериализованные данные PHP.";
 
 /* show optimized field type fallback missing integer stats */
-"Unable to read enough numeric statistics to estimate an optimized integer type." = "Unable to read enough numeric statistics to estimate an optimized integer type.";
+"Unable to read enough numeric statistics to estimate an optimized integer type." = "Не удалось прочитать достаточно числовой статистики для оценки оптимизированного целочисленного типа.";
 
 /* PHP serialized editor output error */
-"Unable to serialize PHP data." = "Unable to serialize PHP data.";
+"Unable to serialize PHP data." = "Не удалось сериализовать данные PHP.";
 
 /* PHP serialized editor end of input error */
-"Unexpected end of serialized data." = "Unexpected end of serialized data.";
+"Unexpected end of serialized data." = "Неожиданный конец сериализованных данных.";
 
 /* PHP serialized editor trailing input error */
-"Unexpected trailing characters after serialized value." = "Unexpected trailing characters after serialized value.";
+"Unexpected trailing characters after serialized value." = "Неожиданные завершающие символы после сериализованного значения.";
 
 /* PHP serialized editor unsupported type error */
 "Unsupported PHP serialized type '%c'." = "Unsupported PHP serialized type '%c'.";
 
 /* PHP serialized editor update selected button */
-"Update Selected" = "Update Selected";
+"Update Selected" = "Обновить выбранное";
 
 /* PHP serialized editor value column */
-"Value" = "Value";
+"Value" = "Значение";
 
 /* Copy connection string password warning */
-"Would you like to include the password in the connection string?\n\n⚠️ WARNING: Sharing passwords in plaintext (Slack, email, etc.) is a security risk!\n\nOnly include the password if you're sharing through a secure channel." = "Would you like to include the password in the connection string?\n\n⚠️ WARNING: Sharing passwords in plaintext (Slack, email, etc.) is a security risk!\n\nOnly include the password if you're sharing through a secure channel.";
+"Would you like to include the password in the connection string?\n\n⚠️ WARNING: Sharing passwords in plaintext (Slack, email, etc.) is a security risk!\n\nOnly include the password if you're sharing through a secure channel." = "Включить пароль в строку подключения?\n\n⚠️ ВНИМАНИЕ: Передача паролей в открытом виде (Slack, электронная почта и т. д.) — риск безопасности!\n\nВключайте пароль только при передаче через защищённый канал.";
 
 /* Vault roles refresh button title */
 "Refresh" = "Обновить";
