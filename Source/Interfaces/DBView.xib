@@ -3228,7 +3228,7 @@ Gw
             <point key="canvasLocation" x="-560" y="353"/>
         </window>
         <window title="Reset Auto Increment" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" releasedWhenClosed="NO" visibleAtLaunch="NO" animationBehavior="default" id="6832" userLabel="Reset Auto Increment Sheet">
-            <windowStyleMask key="styleMask" titled="YES" closable="YES" miniaturizable="YES"/>
+            <windowStyleMask key="styleMask" titled="YES"/>
             <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
             <rect key="contentRect" x="131" y="407" width="303" height="95"/>
             <rect key="screenRect" x="0.0" y="0.0" width="3008" height="1667"/>
@@ -3713,7 +3713,7 @@ DQ
             <point key="canvasLocation" x="-403" y="898"/>
         </window>
         <window title="Progress" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" releasedWhenClosed="NO" visibleAtLaunch="NO" animationBehavior="default" id="6125" userLabel="Progress Sheet" customClass="NSPanel">
-            <windowStyleMask key="styleMask" titled="YES" closable="YES"/>
+            <windowStyleMask key="styleMask" titled="YES"/>
             <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
             <rect key="contentRect" x="101" y="476" width="379" height="139"/>
             <rect key="screenRect" x="0.0" y="0.0" width="3008" height="1667"/>
@@ -3826,7 +3826,7 @@ DQ
             <point key="canvasLocation" x="-855" y="898"/>
         </window>
         <window title="Variables" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" releasedWhenClosed="NO" visibleAtLaunch="NO" frameAutosaveName="SPCreateSyntaxSheet" animationBehavior="default" id="6557" userLabel="Create Table Syntax">
-            <windowStyleMask key="styleMask" titled="YES" closable="YES" miniaturizable="YES" resizable="YES"/>
+            <windowStyleMask key="styleMask" titled="YES" resizable="YES"/>
             <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
             <rect key="contentRect" x="386" y="508" width="411" height="341"/>
             <rect key="screenRect" x="0.0" y="0.0" width="3008" height="1667"/>

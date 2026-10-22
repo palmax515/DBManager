@@ -92,7 +92,7 @@ static inline void SetOnOff(NSNumber *ref,id obj);
 
 // Formal conformance for methods AppKit moved off the informal NSObject
 // categories; implementing them without it is deprecated. No behavior change.
-@interface SPExportController () <SPCSVExporterProtocol, SPSQLExporterProtocol, SPXMLExporterProtocol, SPDotExporterProtocol, SPPDFExporterProtocol, SPHTMLExporterProtocol, NSMenuItemValidation, NSControlTextEditingDelegate>
+@interface SPExportController () <SPCSVExporterProtocol, SPSQLExporterProtocol, SPXMLExporterProtocol, SPDotExporterProtocol, SPPDFExporterProtocol, SPHTMLExporterProtocol, NSMenuItemValidation, NSControlTextEditingDelegate, NSWindowDelegate>
 @property (readwrite, copy) NSString *exportDatabaseName;
 
 - (void)_switchTab;
@@ -466,6 +466,34 @@ static inline void SetOnOff(NSNumber *ref,id obj);
 	
 	[NSApp endSheet:[sender window] returnCode:[(NSButton*)sender tag]];
 	[[sender window] orderOut:self];
+}
+
+/**
+ * Refuses to let the export sheets be closed outright.
+ *
+ * The sheets are document-modal: a plain close (Cmd-W / the red button) only
+ * orders the window out and leaves the parent window with a hidden attached
+ * sheet, so the parent stays modal-locked and stops responding. Dismiss the
+ * sheet through endSheet: instead, exactly as the dialog's buttons do, so the
+ * modal session always ends.
+ */
+- (BOOL)windowShouldClose:(NSWindow *)sender
+{
+	if (sender == self.window || sender == exportProgressWindow || sender == errorsWindow) {
+		[NSApp endSheet:sender returnCode:NSModalResponseCancel];
+		[sender orderOut:self];
+		return NO;
+	}
+	return YES;
+}
+
+/**
+ * The export sheets must not be miniaturized: a sheet that is minimized can no
+ * longer be restored as a sheet, which likewise strands the parent window.
+ */
+- (BOOL)windowShouldMiniaturize:(NSWindow *)sender
+{
+	return sender != self.window && sender != exportProgressWindow && sender != errorsWindow;
 }
 
 - (BOOL)setExportInput:(SPExportSource)input
@@ -2198,7 +2226,17 @@ set_input:
 - (void)_openExportSheet {
     self.exportDatabaseName = nil;
 
-    [[tableDocumentInstance parentWindowControllerWindow] beginSheet:self.window completionHandler:^(NSModalResponse returnCode) {
+    NSWindow *parentWindow = [tableDocumentInstance parentWindowControllerWindow];
+
+    // Self-heal a sheet that a previous close left attached but hidden: without
+    // this the parent window stays modal-locked and no new sheet can be shown.
+    NSWindow *attachedSheet = [parentWindow attachedSheet];
+    if (attachedSheet == self.window || attachedSheet == exportProgressWindow || attachedSheet == errorsWindow) {
+        [NSApp endSheet:attachedSheet returnCode:NSModalResponseCancel];
+        [attachedSheet orderOut:self];
+    }
+
+    [parentWindow beginSheet:self.window completionHandler:^(NSModalResponse returnCode) {
         // Perform the export
         if (returnCode == NSModalResponseOK) {
 

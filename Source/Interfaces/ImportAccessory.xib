@@ -332,7 +332,7 @@
         </customView>
         <userDefaultsController representsSharedInstance="YES" id="28"/>
         <window title="Window" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" releasedWhenClosed="NO" visibleAtLaunch="NO" animationBehavior="default" id="85" userLabel="Import from Clipboard">
-            <windowStyleMask key="styleMask" titled="YES" closable="YES" miniaturizable="YES" resizable="YES"/>
+            <windowStyleMask key="styleMask" titled="YES" resizable="YES"/>
             <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
             <rect key="contentRect" x="131" y="16" width="557" height="563"/>
             <rect key="screenRect" x="0.0" y="0.0" width="2880" height="1595"/>
