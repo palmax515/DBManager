@@ -3305,11 +3305,13 @@ set_input:
 	[exportFiles removeAllObjects];
 	
 	id o;
-	// if we have some bookmarks, populate the last used export path
-	// look up that bookmark and request access
-	if(bookmarks.count > 0){
-		if((o = [dict objectForKey:@"exportPath"])) [exportPathField setStringValue:o];
+	// Restore the last used export path. It is shown even when no security-scoped
+	// bookmark is on file for it: the path itself is still useful and the user
+	// may point the export elsewhere. Requesting sandbox access is the only part
+	// that needs a bookmark, so it stays gated on having one.
+	if((o = [dict objectForKey:@"exportPath"])) [exportPathField setStringValue:o];
 
+	if(bookmarks.count > 0){
         NSString *fileURLString = [NSURL fileURLWithPath:[exportPathField stringValue] isDirectory:YES].absoluteString;
 
         // ret value can be nil
